@@ -16,7 +16,9 @@ def generate_launch_description():
  
   # Set the path to the map file
   map_file_name = 'room_with_walls.yaml'
+  keepout_file_name = 'keepout_mask.yaml'
   map_yaml_path = os.path.join(pkg_path, 'maps', map_file_name)
+  keepout_yaml_path = os.path.join(pkg_path,'maps',keepout_file_name)
 
   # Set the path to the nav params file
   nav_params_file_name = 'nav2_bringup_params.yaml'
@@ -27,6 +29,7 @@ def generate_launch_description():
   # Launch configuration variables specific to simulation
   use_sim_time = LaunchConfiguration('use_sim_time')
   map = LaunchConfiguration('map')
+  keepout_map = LaunchConfiguration('keepout_map')
   params_file = LaunchConfiguration('params_file')
      
   declare_use_sim_time_cmd = DeclareLaunchArgument(
@@ -38,6 +41,12 @@ def generate_launch_description():
       name='map',
       default_value=map_yaml_path,
       description='file path to the map needed for navigation')
+  
+  declare_keepout_cmd = DeclareLaunchArgument(
+    name='keepout_map',
+    default_value=keepout_yaml_path,
+    description= "file path to the keepout filter mask"
+  )
   
   declare_params_file_cmd = DeclareLaunchArgument(
       name='params_file',
@@ -90,6 +99,8 @@ def generate_launch_description():
     'map_server',
     'amcl',
     'costmap',
+    'keepout_filter_mask_server',
+    'costmap_filter_info_server'
   ]
 
   remappings = [('/tf', 'tf'), ('/tf_static', 'tf_static')]
@@ -101,6 +112,25 @@ def generate_launch_description():
     output='screen',
     parameters=[params_file, {'yaml_filename': map}],
     remappings=remappings,
+  )
+  # 1. The Map Server for the Keepout Mask
+  keepout_map_server = Node(
+    package='nav2_map_server',
+    executable='map_server',
+    name='keepout_filter_mask_server',
+    output='screen',
+    parameters=[params_file, {'yaml_filename': keepout_map}],
+    remappings=[('/map', '/keepout_filter_mask')] # Remap to the mask topic
+  )
+
+  # 2. The Filter Info Server (Tells Nav2 this is a "Keepout" type filter)
+  filter_info_server = Node(
+    package='nav2_map_server',
+    executable='costmap_filter_info_server',
+    name='costmap_filter_info_server',
+    output='screen',
+    parameters=[params_file],
+    remappings=[('/map', '/keepout_filter_mask')]
   )
 
   nav2_costmap_2d_node = Node(
@@ -127,6 +157,13 @@ def generate_launch_description():
     parameters=[{"autostart": True, "bond_timeout": 0.0}, {'node_names': lifecycle_nodes}],
   )
 
+  obstacle_generator_node = Node(
+    package='a_star_smooth_planner',
+    executable='obstacle_generator.py',
+    name='obstacle_generator',
+    output='screen'
+  )
+
   #--------------------------------------------------------------------------------
 
   # Create the launch description
@@ -135,6 +172,7 @@ def generate_launch_description():
   # add the necessary declared launch arguments to the launch description
   ld.add_action(declare_use_sim_time_cmd)
   ld.add_action(declare_map_cmd)
+  ld.add_action(declare_keepout_cmd)
   ld.add_action(declare_params_file_cmd)
  
   # Add the nodes to the launch description
@@ -143,8 +181,11 @@ def generate_launch_description():
   ld.add_action(a_star_smoothner_node)
   ld.add_action(pure_pursuit_node)
   ld.add_action(nav2_map_server_node)
+  ld.add_action(keepout_map_server)
+  ld.add_action(filter_info_server)
   ld.add_action(nav2_costmap_2d_node)
   ld.add_action(nav2_amcl_node)
   ld.add_action(nav2_lifecycle_manager_node)
+  ld.add_action(obstacle_generator_node)
 
   return ld

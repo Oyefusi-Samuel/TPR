@@ -46,6 +46,7 @@ ament_python_install_package(${PROJECT_NAME})
 install(PROGRAMS
   ${PROJECT_NAME}/a_star_planner.py
   ${PROJECT_NAME}/a_star_smoother.py
+  ${PROJECT_NAME}/obstacle_generator.py
   DESTINATION lib/${PROJECT_NAME}
 )
 #---------------------------------------------
@@ -56,7 +57,7 @@ install(DIRECTORY
     config
     launch
     maps
-    DESTINATION share/${PROJECT_NAME}/
+    DESTINATION share/${PROJECT_NAME}
 )
 #---------------------------------------------
 
