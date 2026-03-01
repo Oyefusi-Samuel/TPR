@@ -1,0 +1,29 @@
+# ROS 2 Build Artifacts
+build/
+install/
+log/
+
+# Python caching
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.pytest/
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+
+# COLCON specific
+colcon_build.rc
+colcon_test.rc
+
+# Local environment
+.env
+.venv/
+env/
+venv/

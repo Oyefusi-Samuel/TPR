@@ -1,0 +1,32 @@
+<launch>
+  <arg name="use_sim_time" default="false" />
+  
+  <!-- 1. Robot State Publisher -->
+  <node pkg="robot_state_publisher" exec="robot_state_publisher">
+    <param name="robot_description" value="$(command 'xacro $(find-pkg-share jackal_ar4_description)/urdf/jackal_ar4.urdf.xacro')" />
+    <param name="use_sim_time" value="$(var use_sim_time)" />
+  </node>
+  
+  <!-- 2. Joint State Publisher GUI -->
+  <node pkg="joint_state_publisher_gui" exec="joint_state_publisher_gui">
+    <param name="use_sim_time" value="$(var use_sim_time)" />
+  </node>
+  
+  <!-- 3. Ground Truth Odometry (Provides odom -> base_link) -->
+  <node pkg="jackal_ar4_navigation" exec="ground_truth_odom.py" name="ground_truth_odom">
+    <param name="use_sim_time" value="$(var use_sim_time)" />
+  </node>
+
+  <!-- 4. Static Transform: map -> odom (Since we have no AMCL/Sensing yet) -->
+  <node pkg="tf2_ros" exec="static_transform_publisher" name="map_to_odom" args="--x 0 --y 0 --z 0 --yaw 0 --pitch 0 --roll 0 --frame-id map --child-frame-id odom" />
+
+  <!-- 5. Navigation (Nav2) -->
+  <include file="$(find-pkg-share jackal_ar4_navigation)/launch/navigation.launch.py">
+    <arg name="use_sim_time" value="$(var use_sim_time)" />
+  </include>
+
+  <!-- 6. RViz2 -->
+  <node pkg="rviz2" exec="rviz2" args="-d $(find-pkg-share jackal_ar4_description)/config/rviz_config.rviz">
+    <param name="use_sim_time" value="$(var use_sim_time)" />
+  </node>
+</launch>

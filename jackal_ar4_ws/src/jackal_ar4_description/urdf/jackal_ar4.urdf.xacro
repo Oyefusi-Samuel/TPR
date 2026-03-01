@@ -1,0 +1,77 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="jackal_ar4">
+
+  <xacro:arg name="prefix" default="" />
+  <xacro:arg name="arm_prefix" default="ar4_" />
+
+  <!-- Include Common Materials and macros -->
+  <xacro:include filename="$(find clearpath_platform_description)/urdf/common.urdf.xacro" />
+
+  <!-- Include Jackal base -->
+  <xacro:include filename="$(find clearpath_platform_description)/urdf/j100/j100.urdf.xacro" />
+
+  <!-- Include AR4 arm (custom macro) -->
+  <xacro:include filename="$(find jackal_ar4_description)/urdf/ar4_arm.urdf.xacro" />
+
+  <!-- Instantiate Jackal -->
+  <xacro:j100 />
+
+  <!-- Chassis Color Override (Yellow) -->
+  <!-- We add a visual-only link that slightly overlaps the original chassis to change its color in RViz -->
+  <link name="chassis_visual_yellow">
+    <visual>
+      <!-- Scale up by 0.1% to prevent Z-fighting with the original grey mesh -->
+      <origin xyz="0 0 -0.0655" rpy="1.570796 0 1.570796"/>
+      <geometry>
+        <mesh filename="package://clearpath_platform_description/meshes/j100/j100_base.stl" scale="1.001 1.001 1.001"/>
+      </geometry>
+      <material name="clearpath_yellow"/>
+    </visual>
+  </link>
+
+  <joint name="chassis_visual_yellow_joint" type="fixed">
+    <parent link="chassis_link"/>
+    <child link="chassis_visual_yellow"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <!-- AR4 Mount Plate -->
+  <link name="ar4_mount_plate">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.2 0.2 0.01"/>
+      </geometry>
+      <material name="clearpath_black"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.2 0.2 0.01"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.5"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <inertia ixx="0.002" ixy="0.0" ixz="0.0" iyy="0.002" iyz="0.0" izz="0.003"/>
+    </inertial>
+  </link>
+
+  <!-- Joint Jackal chassis to mount plate -->
+  <joint name="ar4_mount_joint" type="fixed">
+    <parent link="default_mount"/>
+    <child link="ar4_mount_plate"/>
+    <origin xyz="0 0 0.005" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Instantiate AR4 arm -->
+  <xacro:ar4_arm prefix="$(arg arm_prefix)" />
+
+  <!-- Joint Mount plate to AR4 base -->
+  <joint name="mount_to_ar4_joint" type="fixed">
+    <parent link="ar4_mount_plate"/>
+    <child link="$(arg arm_prefix)base_link"/>
+    <origin xyz="0 0 0.005" rpy="0 0 0"/>
+  </joint>
+
+</robot>
