@@ -10,7 +10,7 @@ Assume a desktop install of ROS2 Jazzy according to docs.ros.org
    ```
 2. **Build Workspace**:
    ```bash
-   cd /jackal_ar4_ws
+   cd jackal_ar4_ws/
    source /opt/ros/jazzy/setup.bash
    colcon build --symlink-install
    source install/setup.bash
