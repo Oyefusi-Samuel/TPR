@@ -112,5 +112,7 @@
       <axis xyz="0 0 1"/>
       <limit lower="${-1.0 * robot_parameters['j6_limit']}" upper="${robot_parameters['j6_limit']}" effort="100" velocity="1.0"/>
     </joint>
+    <xacro:include filename="$(find ar4_description)/urdf/gripper/ar_gripper_macro.xacro" />
+    <xacro:ar_gripper tf_prefix="${prefix}" parent="${prefix}link_6" />
   </xacro:macro>
 </robot>

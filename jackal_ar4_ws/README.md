@@ -22,14 +22,17 @@ ros2 launch jackal_ar4_description jackal_ar4.launch
 ```
 - **Navigation**: Use the "2D Nav Goal" tool in RViz or run:
   `ros2 run jackal_ar4_goals send_nav_goal <x> <y> <theta>`
+- **Arm Control**: Use the Motion Planning panel in RViz or run:
+  `ros2 run jackal_ar4_goals send_arm_goal <x> <y> <z>`
+*Orientation not currently implemented*
 
 ## Docker Support
-1. **Allow GUI (run once per session)**: `xhost +local:docker`
+1. **Allow GUI**: `xhost +local:docker`
 2. **Build and Run**:
    ```bash
    docker compose up --build
    ```
-3. **Interactive Shell From Another Terminal**:
+3. **Interactive Shell**:
    ```bash
    docker exec -it jackal_ar4_container bash
    ```

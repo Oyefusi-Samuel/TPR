@@ -74,4 +74,6 @@
     <origin xyz="0 0 0.005" rpy="0 0 0"/>
   </joint>
 
+  <!-- ros2_control -->
+  <xacro:include filename="$(find jackal_ar4_description)/urdf/jackal_ar4.ros2_control.xacro" />
 </robot>
