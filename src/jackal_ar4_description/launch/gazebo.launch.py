@@ -1,15 +1,19 @@
 """
 gazebo.launch.py  -  Jackal + AR4 in Gazebo Harmonic (ROS 2 Jazzy)
 
-Mirrors jackal_ar4.launch exactly — same Nav2, same MoveIt, same controllers.
-Adds Gazebo physics + diff_drive + bridge on top.
+NOTE: map->odom is intentionally NOT published as a static transform here.
+Nav2 owns that transform via its localization stack. Publishing a static
+map->odom with use_sim_time=true (timestamp=0) fights Nav2 and causes bouncing.
 """
 
 import os
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, ExecuteProcess, IncludeLaunchDescription, TimerAction
+from launch.actions import (
+    DeclareLaunchArgument, ExecuteProcess,
+    IncludeLaunchDescription, TimerAction,
+)
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import Command, FindExecutable, LaunchConfiguration
@@ -27,7 +31,6 @@ def generate_launch_description():
     pkg_clearpath    = get_package_share_directory('clearpath_platform_description')
     controllers_yaml = os.path.join(pkg_moveit, 'config', 'ros2_controllers.yaml')
 
-    # Mesh paths for Gazebo
     gz_env = {
         'GZ_SIM_RESOURCE_PATH': ':'.join([
             os.path.dirname(pkg_ar4_desc),
@@ -115,18 +118,7 @@ def generate_launch_description():
         output='screen',
     )
 
-    # ── 6. Static transform map -> odom ──────────────────────────────────
-    map_to_odom = Node(
-        package='tf2_ros',
-        executable='static_transform_publisher',
-        name='map_to_odom',
-        arguments=['--x', '0', '--y', '0', '--z', '0',
-                   '--yaw', '0', '--pitch', '0', '--roll', '0',
-                   '--frame-id', 'map', '--child-frame-id', 'odom'],
-        parameters=[{'use_sim_time': True}],
-    )
-
-    # ── 7. Ground Truth Odometry (same as working launch) ─────────────────
+    # ── 6. Ground Truth Odometry ──────────────────────────────────────────
     ground_truth_odom = Node(
         package='jackal_ar4_navigation',
         executable='ground_truth_odom.py',
@@ -135,7 +127,7 @@ def generate_launch_description():
         output='screen',
     )
 
-    # ── 8. Controller Manager (same as working launch) ────────────────────
+    # ── 7. Controller Manager ─────────────────────────────────────────────
     controller_manager = Node(
         package='controller_manager',
         executable='ros2_control_node',
@@ -144,7 +136,7 @@ def generate_launch_description():
         output='screen',
     )
 
-    # ── 9. Spawners (same as working launch) ──────────────────────────────
+    # ── 8. Spawners ───────────────────────────────────────────────────────
     def spawner(name, delay=3.0):
         return TimerAction(period=delay, actions=[Node(
             package='controller_manager',
@@ -158,7 +150,7 @@ def generate_launch_description():
     spawn_arm     = spawner('arm_controller',           delay=4.0)
     spawn_gripper = spawner('ar_gripper_controller',    delay=4.0)
 
-    # ── 10. Nav2 (same as working launch) ─────────────────────────────────
+    # ── 9. Nav2 ───────────────────────────────────────────────────────────
     nav2 = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             os.path.join(pkg_navigation, 'launch', 'navigation.launch.py')
@@ -166,7 +158,7 @@ def generate_launch_description():
         launch_arguments={'use_sim_time': 'true'}.items(),
     )
 
-    # ── 11. MoveIt move_group (same as working launch) ────────────────────
+    # ── 10. MoveIt move_group ─────────────────────────────────────────────
     moveit_config = (
         MoveItConfigsBuilder('jackal_ar4', package_name='jackal_ar4_moveit_config')
         .robot_description(
@@ -192,7 +184,7 @@ def generate_launch_description():
         output='screen',
     )])
 
-    # ── 12. RViz (same as working launch) ─────────────────────────────────
+    # ── 11. RViz ──────────────────────────────────────────────────────────
     rviz_config = os.path.join(pkg_moveit, 'config', 'moveit.rviz')
     if not os.path.exists(rviz_config):
         rviz_config = os.path.join(pkg_description, 'config', 'rviz_config.rviz')
@@ -215,13 +207,15 @@ def generate_launch_description():
         bridge,
         tf_static_bridge,
         wheel_relay,
-        map_to_odom,
-        ground_truth_odom,   # ← was missing
+        ground_truth_odom,
         controller_manager,
         spawn_jsb,
         spawn_arm,
         spawn_gripper,
-        nav2,                # ← was missing
+        nav2,
         move_group,
         rviz,
+        # map_to_odom static publisher intentionally removed —
+        # Nav2 publishes map->odom and the static version (timestamp=0)
+        # conflicts with it causing TF bouncing in RViz.
     ])
