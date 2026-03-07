@@ -1,0 +1,30 @@
+digraph G {
+"odom" -> "base_link"[label=" Broadcaster: default_authority\nAverage rate: 99.281\nBuffer length: 2.921\nMost recent transform: 109.321\nOldest transform: 106.4\n"];
+"map" -> "odom"[label=" Broadcaster: default_authority\nAverage rate: 10000.0\nBuffer length: 0.0\nMost recent transform: 0.0\nOldest transform: 0.0\n"];
+"ar4_gripper_base_link" -> "ar4_gripper_jaw1_link"[label=" Broadcaster: default_authority\nAverage rate: 20.007\nBuffer length: 2.949\nMost recent transform: 109.335\nOldest transform: 106.386\n"];
+"ar4_link_6" -> "ar4_gripper_base_link"[label=" Broadcaster: default_authority\nAverage rate: 10000.0\nBuffer length: 0.0\nMost recent transform: 0.0\nOldest transform: 0.0\n"];
+"ar4_gripper_base_link" -> "ar4_gripper_jaw2_link"[label=" Broadcaster: default_authority\nAverage rate: 20.007\nBuffer length: 2.949\nMost recent transform: 109.335\nOldest transform: 106.386\n"];
+"ar4_base_link" -> "ar4_link_1"[label=" Broadcaster: default_authority\nAverage rate: 20.007\nBuffer length: 2.949\nMost recent transform: 109.335\nOldest transform: 106.386\n"];
+"ar4_mount_plate" -> "ar4_base_link"[label=" Broadcaster: default_authority\nAverage rate: 10000.0\nBuffer length: 0.0\nMost recent transform: 0.0\nOldest transform: 0.0\n"];
+"ar4_link_1" -> "ar4_link_2"[label=" Broadcaster: default_authority\nAverage rate: 20.007\nBuffer length: 2.949\nMost recent transform: 109.335\nOldest transform: 106.386\n"];
+"ar4_link_2" -> "ar4_link_3"[label=" Broadcaster: default_authority\nAverage rate: 20.007\nBuffer length: 2.949\nMost recent transform: 109.335\nOldest transform: 106.386\n"];
+"ar4_link_3" -> "ar4_link_4"[label=" Broadcaster: default_authority\nAverage rate: 20.007\nBuffer length: 2.949\nMost recent transform: 109.335\nOldest transform: 106.386\n"];
+"ar4_link_4" -> "ar4_link_5"[label=" Broadcaster: default_authority\nAverage rate: 20.007\nBuffer length: 2.949\nMost recent transform: 109.335\nOldest transform: 106.386\n"];
+"ar4_link_5" -> "ar4_link_6"[label=" Broadcaster: default_authority\nAverage rate: 20.007\nBuffer length: 2.949\nMost recent transform: 109.335\nOldest transform: 106.386\n"];
+"chassis_link" -> "front_left_wheel_link"[label=" Broadcaster: default_authority\nAverage rate: 20.345\nBuffer length: 2.9\nMost recent transform: 109.309\nOldest transform: 106.409\n"];
+"base_link" -> "chassis_link"[label=" Broadcaster: default_authority\nAverage rate: 10000.0\nBuffer length: 0.0\nMost recent transform: 0.0\nOldest transform: 0.0\n"];
+"chassis_link" -> "front_right_wheel_link"[label=" Broadcaster: default_authority\nAverage rate: 20.345\nBuffer length: 2.9\nMost recent transform: 109.309\nOldest transform: 106.409\n"];
+"chassis_link" -> "rear_left_wheel_link"[label=" Broadcaster: default_authority\nAverage rate: 20.345\nBuffer length: 2.9\nMost recent transform: 109.309\nOldest transform: 106.409\n"];
+"chassis_link" -> "rear_right_wheel_link"[label=" Broadcaster: default_authority\nAverage rate: 20.345\nBuffer length: 2.9\nMost recent transform: 109.309\nOldest transform: 106.409\n"];
+"default_mount" -> "ar4_mount_plate"[label=" Broadcaster: default_authority\nAverage rate: 10000.0\nBuffer length: 0.0\nMost recent transform: 0.0\nOldest transform: 0.0\n"];
+"chassis_link" -> "default_mount"[label=" Broadcaster: default_authority\nAverage rate: 10000.0\nBuffer length: 0.0\nMost recent transform: 0.0\nOldest transform: 0.0\n"];
+"chassis_link" -> "chassis_visual_yellow"[label=" Broadcaster: default_authority\nAverage rate: 10000.0\nBuffer length: 0.0\nMost recent transform: 0.0\nOldest transform: 0.0\n"];
+"default_mount" -> "front_0_mount"[label=" Broadcaster: default_authority\nAverage rate: 10000.0\nBuffer length: 0.0\nMost recent transform: 0.0\nOldest transform: 0.0\n"];
+"chassis_link" -> "imu_0_link"[label=" Broadcaster: default_authority\nAverage rate: 10000.0\nBuffer length: 0.0\nMost recent transform: 0.0\nOldest transform: 0.0\n"];
+"chassis_link" -> "gps_0_link"[label=" Broadcaster: default_authority\nAverage rate: 10000.0\nBuffer length: 0.0\nMost recent transform: 0.0\nOldest transform: 0.0\n"];
+"default_mount" -> "rear_0_mount"[label=" Broadcaster: default_authority\nAverage rate: 10000.0\nBuffer length: 0.0\nMost recent transform: 0.0\nOldest transform: 0.0\n"];
+edge [style=invis];
+ subgraph cluster_legend { style=bold; color=black; label ="view_frames Result";
+"Recorded at time: 1772910138.8180833"[ shape=plaintext ] ;
+}->"map";
+}
