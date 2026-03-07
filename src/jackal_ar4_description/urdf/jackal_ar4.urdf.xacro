@@ -1,0 +1,108 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="jackal_ar4">
+
+  <xacro:arg name="prefix" default="" />
+  <xacro:arg name="arm_prefix" default="ar4_" />
+  <xacro:arg name="is_sim" default="false" />
+
+  <!-- Include Common Materials and macros -->
+  <xacro:include filename="$(find clearpath_platform_description)/urdf/common.urdf.xacro" />
+
+  <!-- Include Jackal base -->
+  <xacro:include filename="$(find clearpath_platform_description)/urdf/j100/j100.urdf.xacro" />
+
+  <!-- Include AR4 arm (custom macro) -->
+  <xacro:include filename="$(find jackal_ar4_description)/urdf/ar4_arm.urdf.xacro" />
+
+  <!-- Instantiate Jackal -->
+  <xacro:j100 />
+
+  <!-- Chassis Color Override (Yellow) -->
+  <link name="chassis_visual_yellow">
+    <visual>
+      <origin xyz="0 0 -0.0655" rpy="1.570796 0 1.570796"/>
+      <geometry>
+        <mesh filename="package://clearpath_platform_description/meshes/j100/j100_base.stl" scale="1.001 1.001 1.001"/>
+      </geometry>
+      <material name="clearpath_yellow"/>
+    </visual>
+  </link>
+  <joint name="chassis_visual_yellow_joint" type="fixed">
+    <parent link="chassis_link"/>
+    <child link="chassis_visual_yellow"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <!-- AR4 Mount Plate -->
+  <link name="ar4_mount_plate">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><box size="0.2 0.2 0.01"/></geometry>
+      <material name="clearpath_black"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><box size="0.2 0.2 0.01"/></geometry>
+    </collision>
+    <inertial>
+      <mass value="0.5"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <inertia ixx="0.002" ixy="0.0" ixz="0.0" iyy="0.002" iyz="0.0" izz="0.003"/>
+    </inertial>
+  </link>
+  <joint name="ar4_mount_joint" type="fixed">
+    <parent link="default_mount"/>
+    <child link="ar4_mount_plate"/>
+    <origin xyz="0 0 0.005" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Instantiate AR4 arm -->
+  <xacro:ar4_arm prefix="$(arg arm_prefix)" />
+
+  <!-- Joint Mount plate to AR4 base -->
+  <joint name="mount_to_ar4_joint" type="fixed">
+    <parent link="ar4_mount_plate"/>
+    <child link="$(arg arm_prefix)base_link"/>
+    <origin xyz="0 0 0.005" rpy="0 0 0"/>
+  </joint>
+
+  <!-- ros2_control -->
+  <xacro:include filename="$(find jackal_ar4_description)/urdf/jackal_ar4.ros2_control.xacro" />
+
+  <!-- ── Gazebo plugins (only when is_sim:=true) ──────────────────────── -->
+  <xacro:if value="$(arg is_sim)">
+
+    <!-- Differential drive: wheels physics + /odom + /tf odom->base_link -->
+    <gazebo>
+      <plugin filename="gz-sim-diff-drive-system"
+              name="gz::sim::systems::DiffDrive">
+        <left_joint>front_left_wheel_joint</left_joint>
+        <left_joint>rear_left_wheel_joint</left_joint>
+        <right_joint>front_right_wheel_joint</right_joint>
+        <right_joint>rear_right_wheel_joint</right_joint>
+        <wheel_separation>0.37559</wheel_separation>
+        <wheel_radius>0.098</wheel_radius>
+        <odom_publish_frequency>50</odom_publish_frequency>
+        <topic>/cmd_vel</topic>
+        <odom_topic>/odom</odom_topic>
+        <frame_id>odom</frame_id>
+        <child_frame_id>base_link</child_frame_id>
+        <tf_topic>/tf</tf_topic>
+      </plugin>
+    </gazebo>
+
+    <!-- Publish wheel joint states from Gazebo to /wheel_joint_states -->
+    <gazebo>
+      <plugin filename="gz-sim-joint-state-publisher-system"
+              name="gz::sim::systems::JointStatePublisher">
+        <topic>/wheel_joint_states</topic>
+        <joint_name>front_left_wheel_joint</joint_name>
+        <joint_name>front_right_wheel_joint</joint_name>
+        <joint_name>rear_left_wheel_joint</joint_name>
+        <joint_name>rear_right_wheel_joint</joint_name>
+      </plugin>
+    </gazebo>
+
+  </xacro:if>
+
+</robot>

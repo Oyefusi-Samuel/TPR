@@ -1,0 +1,107 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="jackal_ar4">
+
+  <xacro:arg name="prefix" default="" />
+  <xacro:arg name="arm_prefix" default="ar4_" />
+
+  <!-- Simulation flags (consumed here and forwarded through xacro args to j100 / ros2_control) -->
+  <xacro:arg name="is_sim" default="false" />
+  <!-- Path to the ros2_controllers yaml – needed by the gz_ros2_control plugin -->
+  <xacro:arg name="gazebo_controllers"
+    default="$(find jackal_ar4_moveit_config)/config/ros2_controllers.yaml" />
+  <xacro:arg name="namespace" default="" />
+
+  <!-- Include Common Materials and macros -->
+  <xacro:include filename="$(find clearpath_platform_description)/urdf/common.urdf.xacro" />
+
+  <!-- Include Jackal base (respects is_sim / use_platform_controllers / namespace args) -->
+  <xacro:include filename="$(find clearpath_platform_description)/urdf/j100/j100.urdf.xacro" />
+
+  <!-- Include AR4 arm (custom macro) -->
+  <xacro:include filename="$(find jackal_ar4_description)/urdf/ar4_arm.urdf.xacro" />
+
+  <!-- Instantiate Jackal (use_platform_controllers:=false — we own the ros2_control block) -->
+  <xacro:j100 />
+
+  <!-- ─── Chassis Color Override (Yellow) ────────────────────────────────── -->
+  <link name="chassis_visual_yellow">
+    <visual>
+      <origin xyz="0 0 -0.0655" rpy="1.570796 0 1.570796"/>
+      <geometry>
+        <mesh filename="package://clearpath_platform_description/meshes/j100/j100_base.stl"
+              scale="1.001 1.001 1.001"/>
+      </geometry>
+      <material name="clearpath_yellow"/>
+    </visual>
+  </link>
+  <joint name="chassis_visual_yellow_joint" type="fixed">
+    <parent link="chassis_link"/>
+    <child link="chassis_visual_yellow"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <!-- ─── AR4 Mount Plate ──────────────────────────────────────────────────── -->
+  <link name="ar4_mount_plate">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><box size="0.2 0.2 0.01"/></geometry>
+      <material name="clearpath_black"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><box size="0.2 0.2 0.01"/></geometry>
+    </collision>
+    <inertial>
+      <mass value="0.5"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <inertia ixx="0.002" ixy="0.0" ixz="0.0"
+               iyy="0.002" iyz="0.0" izz="0.003"/>
+    </inertial>
+  </link>
+  <joint name="ar4_mount_joint" type="fixed">
+    <parent link="default_mount"/>
+    <child link="ar4_mount_plate"/>
+    <origin xyz="0 0 0.005" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Instantiate AR4 arm -->
+  <xacro:ar4_arm prefix="$(arg arm_prefix)" />
+
+  <!-- Joint: mount plate → AR4 base -->
+  <joint name="mount_to_ar4_joint" type="fixed">
+    <parent link="ar4_mount_plate"/>
+    <child link="$(arg arm_prefix)base_link"/>
+    <origin xyz="0 0 0.005" rpy="0 0 0"/>
+  </joint>
+
+  <!-- ─── ros2_control (hardware plugin switches on is_sim) ──────────────── -->
+  <xacro:include filename="$(find jackal_ar4_description)/urdf/jackal_ar4.ros2_control.xacro" />
+
+  <!-- ─── Gazebo gz_ros2_control plugin (only loaded in simulation) ─────── -->
+  <xacro:if value="$(arg is_sim)">
+    <gazebo>
+      <plugin filename="libgz_ros2_control-system.so"
+              name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+        <!-- Points to ros2_controllers.yaml so Gazebo boots the controller_manager -->
+        <parameters>$(arg gazebo_controllers)</parameters>
+        <ros>
+          <namespace>$(arg namespace)</namespace>
+          <remapping>/tf:=tf</remapping>
+          <remapping>/tf_static:=tf_static</remapping>
+        </ros>
+      </plugin>
+    </gazebo>
+
+    <!-- Broadcast ground-truth pose for debugging -->
+    <gazebo>
+      <plugin filename="libgz-sim-pose-publisher-system.so"
+              name="gz::sim::systems::PosePublisher"> 
+        <publish_link_pose>true</publish_link_pose>
+        <publish_nested_model_pose>true</publish_nested_model_pose>
+        <use_pose_vector_msg>true</use_pose_vector_msg>
+        <update_frequency>50</update_frequency>
+      </plugin>
+    </gazebo>
+  </xacro:if>
+
+</robot>

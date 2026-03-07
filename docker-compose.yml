@@ -1,0 +1,16 @@
+services:
+  jackal_ar4:
+    build: .
+    image: jackal_ar4:latest
+    container_name: jackal_ar4_container
+    network_mode: host
+    environment:
+      - DISPLAY=${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ./src:/root/jackal_ar4_ws/src
+    stdin_open: true
+    tty: true
+    privileged: true
+    command: ros2 launch jackal_ar4_description jackal_ar4.launch
