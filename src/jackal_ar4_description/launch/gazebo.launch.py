@@ -1,9 +1,10 @@
 """
 gazebo.launch.py  -  Jackal + AR4 in Gazebo Harmonic (ROS 2 Jazzy)
 
-NOTE: map->odom is intentionally NOT published as a static transform here.
-Nav2 owns that transform via its localization stack. Publishing a static
-map->odom with use_sim_time=true (timestamp=0) fights Nav2 and causes bouncing.
+Bounce fix: map_to_odom static_transform_publisher must NOT use sim time.
+With use_sim_time=True it publishes at timestamp=0 while everything else
+is at sim time ~176s. RViz TF interpolation bounces between them.
+Static transforms are timeless — no clock needed.
 """
 
 import os
@@ -39,14 +40,11 @@ def generate_launch_description():
         ]),
     }
 
-    # ── Args ──────────────────────────────────────────────────────────────
     world_arg       = DeclareLaunchArgument('world', default_value='empty.sdf')
     launch_rviz_arg = DeclareLaunchArgument('launch_rviz', default_value='true')
-
     world       = LaunchConfiguration('world')
     launch_rviz = LaunchConfiguration('launch_rviz')
 
-    # ── Robot description ─────────────────────────────────────────────────
     robot_description_content = ParameterValue(
         Command([
             FindExecutable(name='xacro'), ' ',
@@ -81,7 +79,7 @@ def generate_launch_description():
         output='screen',
     )
 
-    # ── 4. ROS <-> Gazebo bridge ──────────────────────────────────────────
+    # ── 4. Bridges ────────────────────────────────────────────────────────
     bridge = Node(
         package='ros_gz_bridge',
         executable='parameter_bridge',
@@ -108,7 +106,7 @@ def generate_launch_description():
         output='screen',
     )
 
-    # ── 5. Relay wheel joint states into /joint_states ────────────────────
+    # ── 5. Wheel joint state relay ────────────────────────────────────────
     wheel_relay = Node(
         package='topic_tools',
         executable='relay',
@@ -118,13 +116,19 @@ def generate_launch_description():
         output='screen',
     )
 
-    # ── 6. Ground Truth Odometry ──────────────────────────────────────────
-    ground_truth_odom = Node(
-        package='jackal_ar4_navigation',
-        executable='ground_truth_odom.py',
-        name='ground_truth_odom',
-        parameters=[{'use_sim_time': True}],
-        output='screen',
+    # ── 6. map -> odom static transform ──────────────────────────────────
+    # NOTE: use_sim_time intentionally NOT set here.
+    # static_transform_publisher with use_sim_time=True publishes at
+    # timestamp=0 while all other TF data is at sim time ~100s+.
+    # This mismatch causes RViz to bounce. Static TFs are timeless.
+    map_to_odom = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='map_to_odom',
+        arguments=['--x', '0', '--y', '0', '--z', '0',
+                   '--yaw', '0', '--pitch', '0', '--roll', '0',
+                   '--frame-id', 'map', '--child-frame-id', 'odom'],
+        # No use_sim_time here — this is the fix
     )
 
     # ── 7. Controller Manager ─────────────────────────────────────────────
@@ -207,7 +211,7 @@ def generate_launch_description():
         bridge,
         tf_static_bridge,
         wheel_relay,
-        ground_truth_odom,
+        map_to_odom,
         controller_manager,
         spawn_jsb,
         spawn_arm,
@@ -215,7 +219,4 @@ def generate_launch_description():
         nav2,
         move_group,
         rviz,
-        # map_to_odom static publisher intentionally removed —
-        # Nav2 publishes map->odom and the static version (timestamp=0)
-        # conflicts with it causing TF bouncing in RViz.
     ])
