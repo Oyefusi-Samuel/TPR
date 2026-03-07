@@ -1,16 +1,17 @@
 """
 gazebo.launch.py  -  Jackal + AR4 in Gazebo Harmonic (ROS 2 Jazzy)
 
-Mirrors jackal_ar4.launch exactly for the arm/gripper stack.
-Adds Gazebo physics + wheel bridge on top.
+Mirrors jackal_ar4.launch exactly — same Nav2, same MoveIt, same controllers.
+Adds Gazebo physics + diff_drive + bridge on top.
 """
 
 import os
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, ExecuteProcess, TimerAction
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, IncludeLaunchDescription, TimerAction
 from launch.conditions import IfCondition
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import Command, FindExecutable, LaunchConfiguration
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
@@ -21,11 +22,12 @@ def generate_launch_description():
 
     pkg_description  = get_package_share_directory('jackal_ar4_description')
     pkg_moveit       = get_package_share_directory('jackal_ar4_moveit_config')
+    pkg_navigation   = get_package_share_directory('jackal_ar4_navigation')
     pkg_ar4_desc     = get_package_share_directory('ar4_description')
     pkg_clearpath    = get_package_share_directory('clearpath_platform_description')
     controllers_yaml = os.path.join(pkg_moveit, 'config', 'ros2_controllers.yaml')
 
-    # Mesh paths so Gazebo resolves package:// URIs
+    # Mesh paths for Gazebo
     gz_env = {
         'GZ_SIM_RESOURCE_PATH': ':'.join([
             os.path.dirname(pkg_ar4_desc),
@@ -35,14 +37,13 @@ def generate_launch_description():
     }
 
     # ── Args ──────────────────────────────────────────────────────────────
-    DeclareLaunchArgument('world', default_value='empty.sdf')
+    world_arg       = DeclareLaunchArgument('world', default_value='empty.sdf')
     launch_rviz_arg = DeclareLaunchArgument('launch_rviz', default_value='true')
-    world_arg = DeclareLaunchArgument('world', default_value='empty.sdf')
 
     world       = LaunchConfiguration('world')
     launch_rviz = LaunchConfiguration('launch_rviz')
 
-    # ── Robot description (is_sim:=true) ──────────────────────────────────
+    # ── Robot description ─────────────────────────────────────────────────
     robot_description_content = ParameterValue(
         Command([
             FindExecutable(name='xacro'), ' ',
@@ -104,10 +105,7 @@ def generate_launch_description():
         output='screen',
     )
 
-    # ── 5. Merge wheel joint states into /joint_states ────────────────────
-    # ros2_control publishes arm joints to /joint_states
-    # Gazebo publishes wheel joints to /wheel_joint_states
-    # Relay merges them so RSP gets a complete robot state
+    # ── 5. Relay wheel joint states into /joint_states ────────────────────
     wheel_relay = Node(
         package='topic_tools',
         executable='relay',
@@ -128,7 +126,16 @@ def generate_launch_description():
         parameters=[{'use_sim_time': True}],
     )
 
-    # ── 7. Controller Manager (same as working launch) ────────────────────
+    # ── 7. Ground Truth Odometry (same as working launch) ─────────────────
+    ground_truth_odom = Node(
+        package='jackal_ar4_navigation',
+        executable='ground_truth_odom.py',
+        name='ground_truth_odom',
+        parameters=[{'use_sim_time': True}],
+        output='screen',
+    )
+
+    # ── 8. Controller Manager (same as working launch) ────────────────────
     controller_manager = Node(
         package='controller_manager',
         executable='ros2_control_node',
@@ -137,7 +144,7 @@ def generate_launch_description():
         output='screen',
     )
 
-    # ── 8. Spawners (same as working launch) ──────────────────────────────
+    # ── 9. Spawners (same as working launch) ──────────────────────────────
     def spawner(name, delay=3.0):
         return TimerAction(period=delay, actions=[Node(
             package='controller_manager',
@@ -151,7 +158,15 @@ def generate_launch_description():
     spawn_arm     = spawner('arm_controller',           delay=4.0)
     spawn_gripper = spawner('ar_gripper_controller',    delay=4.0)
 
-    # ── 9. MoveIt move_group (same as working launch) ─────────────────────
+    # ── 10. Nav2 (same as working launch) ─────────────────────────────────
+    nav2 = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(pkg_navigation, 'launch', 'navigation.launch.py')
+        ),
+        launch_arguments={'use_sim_time': 'true'}.items(),
+    )
+
+    # ── 11. MoveIt move_group (same as working launch) ────────────────────
     moveit_config = (
         MoveItConfigsBuilder('jackal_ar4', package_name='jackal_ar4_moveit_config')
         .robot_description(
@@ -177,7 +192,7 @@ def generate_launch_description():
         output='screen',
     )])
 
-    # ── 10. RViz (same as working launch) ─────────────────────────────────
+    # ── 12. RViz (same as working launch) ─────────────────────────────────
     rviz_config = os.path.join(pkg_moveit, 'config', 'moveit.rviz')
     if not os.path.exists(rviz_config):
         rviz_config = os.path.join(pkg_description, 'config', 'rviz_config.rviz')
@@ -201,10 +216,12 @@ def generate_launch_description():
         tf_static_bridge,
         wheel_relay,
         map_to_odom,
+        ground_truth_odom,   # ← was missing
         controller_manager,
         spawn_jsb,
         spawn_arm,
         spawn_gripper,
+        nav2,                # ← was missing
         move_group,
         rviz,
     ])
