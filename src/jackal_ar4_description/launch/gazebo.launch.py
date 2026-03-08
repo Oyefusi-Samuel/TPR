@@ -36,7 +36,11 @@ def generate_launch_description():
     try:
         pkg_worlds = get_package_share_directory('jackal_ar4_worlds')
         worlds_dir = os.path.join(pkg_worlds, 'worlds')
-        default_world = os.path.join(worlds_dir, 'empty.sdf')
+        # BUG FIX: use only the basename here.
+        # world_path is built as PathJoinSubstitution([worlds_dir, [world_name, '.sdf']]),
+        # so if default_world were the full path the launch would produce
+        # "…/worlds/empty.sdf.sdf" and Gazebo would fail to start.
+        default_world = 'empty'
     except PackageNotFoundError:
         pkg_worlds = None
         worlds_dir = None

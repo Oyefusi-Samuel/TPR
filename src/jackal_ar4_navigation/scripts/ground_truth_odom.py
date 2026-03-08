@@ -1,4 +1,21 @@
 #!/usr/bin/env python3
+"""
+ground_truth_odom.py
+====================
+Simulates odometry by integrating /cmd_vel and publishes:
+  - /odometry/filtered  (nav_msgs/Odometry)
+  - TF: odom -> base_link
+
+IMPORTANT: Do NOT run this node alongside the Gazebo DiffDrive plugin
+(gz-sim-diff-drive-system).  That plugin already publishes odom->base_link
+via the /tf bridge.  Running both produces a duplicate-broadcaster conflict
+and causes TF lookup failures.
+
+This node is intended for use WITHOUT Gazebo (e.g. hardware bringup or
+RViz-only mode).  Set the 'use_sim_time' ROS parameter to false (default)
+for real-robot use, or true only when an external /clock source is present
+and the DiffDrive bridge is NOT bridging odom->base_link.
+"""
 import rclpy
 from rclpy.node import Node
 from nav_msgs.msg import Odometry
@@ -9,6 +26,9 @@ import math
 class GroundTruthOdom(Node):
     def __init__(self):
         super().__init__('ground_truth_odom')
+        # Respect the ROS use_sim_time parameter so that timestamps are
+        # consistent with the rest of the system (Gazebo sim or real robot).
+        self.declare_parameter('use_sim_time', False)
 
         # State
         self.x = 0.0
