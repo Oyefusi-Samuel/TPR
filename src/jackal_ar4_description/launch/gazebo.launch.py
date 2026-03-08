@@ -46,13 +46,19 @@ def generate_launch_description():
         worlds_dir = None
         default_world = 'empty.sdf'  # Gazebo's built-in fallback
 
+    # GZ_SIM_RESOURCE_PATH must point at the models/ directory.
+    # World SDFs use <include><uri>room_with_walls_star</uri> which Gazebo
+    # resolves by searching for a subfolder named 'room_with_walls_star'
+    # containing model.config inside GZ_SIM_RESOURCE_PATH.
+    models_dir = os.path.join(pkg_worlds, 'models') if pkg_worlds else None
+
     gz_resource_paths = [
         os.path.dirname(pkg_ar4_desc),
         os.path.dirname(pkg_clearpath),
         os.path.dirname(pkg_description),
     ]
-    if worlds_dir:
-        gz_resource_paths.append(worlds_dir)
+    if models_dir:
+        gz_resource_paths.append(models_dir)
 
     gz_env = {'GZ_SIM_RESOURCE_PATH': ':'.join(gz_resource_paths)}
 
@@ -158,17 +164,9 @@ def generate_launch_description():
                    '--frame-id', 'map', '--child-frame-id', 'odom'],
     )
 
-    # ── 7. Controller Manager ─────────────────────────────────────────────
-    # Delayed until sim clock is flowing — prevents use_sim_time freeze
-    controller_manager = TimerAction(period=5.0, actions=[Node(
-        package='controller_manager',
-        executable='ros2_control_node',
-        name='controller_manager',
-        parameters=[robot_description, controllers_yaml, {'use_sim_time': True}],
-        output='screen',
-    )])
-
-    # ── 8. Spawners — delayed well after controller_manager + sim clock ───
+    # ── 7. Controller spawners ─────────────────────────────────────────────
+    # gz_ros2_control plugin (in the URDF) launches the controller_manager
+    # internally inside Gazebo.  We only need to activate the controllers.
     def spawner(name, delay):
         return TimerAction(period=delay, actions=[Node(
             package='controller_manager',
@@ -240,7 +238,6 @@ def generate_launch_description():
         wheel_relay,
         map_to_odom,
         spawn_robot,       # t=3s
-        controller_manager,# t=5s  (after sim clock is flowing)
         spawn_jsb,         # t=8s
         spawn_arm,         # t=9s
         spawn_gripper,     # t=9s
