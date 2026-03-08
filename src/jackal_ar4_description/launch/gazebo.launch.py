@@ -110,7 +110,10 @@ def generate_launch_description():
 
     # ── 3. Spawn into Gazebo ──────────────────────────────────────────────
     # Delay spawn until Gazebo is ready
-    spawn_robot = TimerAction(period=3.0, actions=[Node(
+    # Delay increased to 8s — complex worlds (tpr, room_with_walls) take
+    # longer to load.  Spawning too early causes a silent failure where
+    # Gazebo's world service isn't ready yet and the robot never appears.
+    spawn_robot = TimerAction(period=8.0, actions=[Node(
         package='ros_gz_sim',
         executable='create',
         arguments=['-name', 'jackal_ar4', '-topic', 'robot_description', '-z', '0.15'],
@@ -164,9 +167,19 @@ def generate_launch_description():
                    '--frame-id', 'map', '--child-frame-id', 'odom'],
     )
 
-    # ── 7. Controller spawners ─────────────────────────────────────────────
-    # gz_ros2_control plugin (in the URDF) launches the controller_manager
-    # internally inside Gazebo.  We only need to activate the controllers.
+    # ── 7. Controller Manager ─────────────────────────────────────────────
+    # Standalone ros2_control_node — delayed until sim clock is flowing.
+    # (gz_ros2_control URDF plugin is not yet active; this node owns
+    #  the hardware interface and allows the spawners below to activate.)
+    controller_manager = TimerAction(period=10.0, actions=[Node(
+        package='controller_manager',
+        executable='ros2_control_node',
+        name='controller_manager',
+        parameters=[robot_description, controllers_yaml, {'use_sim_time': True}],
+        output='screen',
+    )])
+
+    # ── 8. Spawners — delayed well after controller_manager + sim clock ───
     def spawner(name, delay):
         return TimerAction(period=delay, actions=[Node(
             package='controller_manager',
@@ -176,9 +189,9 @@ def generate_launch_description():
             output='screen',
         )])
 
-    spawn_jsb     = spawner('joint_state_broadcaster', delay=8.0)
-    spawn_arm     = spawner('arm_controller',           delay=9.0)
-    spawn_gripper = spawner('ar_gripper_controller',    delay=9.0)
+    spawn_jsb     = spawner('joint_state_broadcaster', delay=13.0)
+    spawn_arm     = spawner('arm_controller',           delay=14.0)
+    spawn_gripper = spawner('ar_gripper_controller',    delay=14.0)
 
     # ── 9. Nav2 ───────────────────────────────────────────────────────────
     nav2 = IncludeLaunchDescription(
@@ -207,7 +220,7 @@ def generate_launch_description():
         .to_moveit_configs()
     )
 
-    move_group = TimerAction(period=11.0, actions=[Node(
+    move_group = TimerAction(period=16.0, actions=[Node(
         package='moveit_ros_move_group',
         executable='move_group',
         parameters=[moveit_config.to_dict(), {'use_sim_time': True}],
@@ -219,7 +232,7 @@ def generate_launch_description():
     if not os.path.exists(rviz_config):
         rviz_config = os.path.join(pkg_description, 'config', 'rviz_config.rviz')
 
-    rviz = TimerAction(period=12.0, actions=[Node(
+    rviz = TimerAction(period=17.0, actions=[Node(
         package='rviz2',
         executable='rviz2',
         arguments=['-d', rviz_config],
@@ -238,6 +251,7 @@ def generate_launch_description():
         wheel_relay,
         map_to_odom,
         spawn_robot,       # t=3s
+        controller_manager,# t=5s
         spawn_jsb,         # t=8s
         spawn_arm,         # t=9s
         spawn_gripper,     # t=9s
