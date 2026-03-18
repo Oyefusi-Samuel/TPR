@@ -9,6 +9,7 @@ from tf2_ros import Buffer, TransformListener, LookupException
 
 import random
 from random import *
+import math
 
 class Obstacle:
     def __init__(self,coordinate:tuple ,twist_vector:Twist):
@@ -60,66 +61,6 @@ class obstacleController(Node):
         #should happen on a set timerz
         pass
 
-# from sensor_msgs.msg import LaserScan
-# import math
-
-# class FakeObstaclePublisher(Node):
-#     def __init__(self):
-#         super().__init__('fake_obstacle_node')
-#         self.publisher_ = self.create_publisher(LaserScan, '/fake_scan', 10)
-#         self.timer = self.create_timer(0.1, self.publish_fake_scan) # 10Hz
-
-#     def publish_fake_scan(self):
-#         scan = LaserScan()
-#         scan.header.stamp = self.get_clock().now().to_msg()
-#         scan.header.frame_id = 'map' # Attach to map so it stays put
-        
-#         # Define the scan parameters
-#         scan.angle_min = 0.0
-#         scan.angle_max = 2 * math.pi
-#         scan.angle_increment = math.pi / 180 # 1 degree resolution
-#         scan.time_increment = 0.0
-#         scan.range_min = 0.1
-#         scan.range_max = 20.0
-        
-
-#         # Fill with "infinity" so we don't clear real obstacles
-#         scan.ranges = [float('inf')] * 360
-        
-#         # Place a 3-point wide "obstacle" at 2 meters away
-#         # This will appear at the 0-degree mark relative to the map frame
-#         obstacle_x = 4.0 #2 meters from map origin
-#         obstacle_y = -3 #0.5 meters to the left
-#         obstacle_radius = 0.2 #30cm radius
-
-#         # Distance from origin to chair center
-#         d = math.sqrt(obstacle_x**2 + obstacle_y**2)
-#         # Angle from origin to chair center
-#         alpha = math.atan2(obstacle_y, obstacle_x)
-#         for i in range(360):
-#             theta = i * scan.angle_increment
-            
-#             # Using the Law of Cosines to find the intersection of the ray and circle
-#             # Solve for r: r^2 - 2rd*cos(theta-alpha) + (d^2 - R^2) = 0
-#             # Using the quadratic formula:
-#             b = -2 * d * math.cos(theta - alpha)
-#             c = d**2 - obstacle_radius**2
-#             discriminant = b**2 - 4*c
-
-#             if discriminant >= 0:
-#                 # We want the closest hit (the minus in the quadratic formula)
-#                 r = (-b - math.sqrt(discriminant)) / 2
-#                 if r > 0:
-#                     scan.ranges[i] = r
-
-#         self.publisher_.publish(scan)
-
-# def main(args=None):
-#     rclpy.init(args=args)
-#     node = FakeObstaclePublisher()
-#     rclpy.spin(node)
-#     node.destroy_node()
-#     rclpy.shutdown()
 
 
 
