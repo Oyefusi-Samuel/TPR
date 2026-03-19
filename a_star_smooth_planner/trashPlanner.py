@@ -26,6 +26,8 @@ class TrashPlanner(Node):
         self.goal_sub = self.create_subscription(
             PoseArray, 'detected_goals', self.process_goals, 10)
         
+        self.goal_pub = self.create_publisher(PoseStamped, '/planned_goal', 10)
+        
         # Setup TF2 Listener
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
@@ -78,8 +80,23 @@ class TrashPlanner(Node):
         
         
         closet_trash = self.find_closest(coord_list,self.robotPose)
-        goal = self.determine_goal(closet_trash,coord_list)
-        self.get_logger().info(f'determined this is the goal: {goal}')
+        if closet_trash:
+            goal = self.determine_goal(closet_trash,coord_list)
+            # Create the PoseStamped message
+            goal_msg = PoseStamped()
+            goal_msg.header.stamp = self.get_clock().now().to_msg()
+            goal_msg.header.frame_id = 'map'  # Matches your TF frame
+            
+            goal_msg.pose.position.x = float(goal[0])
+            goal_msg.pose.position.y = float(goal[1])
+            goal_msg.pose.position.z = 0.0
+            
+            # No rotation needed for the centroid, so we set a "neutral" quaternion
+            goal_msg.pose.orientation.w = 1.0 
+
+            # Publish it!
+            self.goal_pub.publish(goal_msg)
+            self.get_logger().info(f'Published Goal: {goal}')
 
     def world_to_grid(self, world_x, world_y):
         """Converts real-world meters to grid index"""

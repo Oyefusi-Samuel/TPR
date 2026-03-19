@@ -54,7 +54,7 @@ def generate_launch_description():
       description='file path to the navigation paramater file needed for navigation')
 
   #-----------------------------------------------------------------------------
-  rviz_config_file = os.path.join(pkg_path,'config','amcl.rviz')
+  rviz_config_file = os.path.join(pkg_path,'config','planner_view.rviz')
 
 
   # create needed nodes or launch files
