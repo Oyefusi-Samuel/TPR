@@ -47,6 +47,8 @@ install(PROGRAMS
   ${PROJECT_NAME}/a_star_planner.py
   ${PROJECT_NAME}/a_star_smoother.py
   ${PROJECT_NAME}/obstacle_generator.py
+  ${PROJECT_NAME}/trashGenerator.py
+  ${PROJECT_NAME}/trashPlanner.py
   DESTINATION lib/${PROJECT_NAME}
 )
 #---------------------------------------------

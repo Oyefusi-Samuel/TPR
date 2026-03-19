@@ -1,9 +1,12 @@
+#!/usr/bin/env python3
 import rclpy
 from rclpy.node import Node
 from nav_msgs.msg import OccupancyGrid, Path
 from geometry_msgs.msg import PoseStamped, Pose, Twist
 from rclpy.qos import QoSProfile, DurabilityPolicy
 from tf2_ros import Buffer, TransformListener, LookupException
+from geometry_msgs.msg import PoseArray, PoseStamped
+from nav_msgs.msg import Odometry
 
 import random
 from random import *
@@ -20,9 +23,39 @@ class TrashPlanner(Node):
             '/costmap', 
             self.costmap_callback,
             10)
+        self.goal_sub = self.create_subscription(
+            PoseArray, 'detected_goals', self.process_goals, 10)
+        
+        # Setup TF2 Listener
+        self.tf_buffer = Buffer()
+        self.tf_listener = TransformListener(self.tf_buffer, self)
+        
+        # Initialize pose to a safe default
+        
         self.grid_data = None
         self.map_resolution = 0.0
         self.map_origin = None
+        self.robotPose = None
+
+    def update_robot_pose(self):
+        try:
+            # Get the latest transform (Time(0))
+            now = rclpy.time.Time()
+            trans = self.tf_buffer.lookup_transform(
+                'map', 
+                'base_link', 
+                now,
+                timeout=rclpy.duration.Duration(seconds=0.1)
+            )
+            
+            self.robotPose = [
+                trans.transform.translation.x,
+                trans.transform.translation.y
+            ]
+            return True
+        except Exception as e:
+            self.get_logger().warning(f'Could not look up robot pose: {e}')
+            return False
 
     def costmap_callback(self, msg):
         # Store metadata for coordinate conversion
@@ -33,25 +66,56 @@ class TrashPlanner(Node):
         # ROS 2 data is row-major
         self.grid_data = np.array(msg.data).reshape((msg.info.height, msg.info.width))
 
-    def find_closest(self,trashDict, robotPose):
+    def process_goals(self,msg):
+        self.update_robot_pose()
+        if not msg.poses or self.robotPose is None or self.grid_data is None:
+            self.get_logger().info(f'missing an element for calculation!, \n poses are {msg.poses} \n robotPose is {self.robotPose} \n gridData is {self.grid_data} ')
+            return
+        coord_list = []
+        for p in msg.poses:
+            coords = (p.position.x,p.position.y)
+            coord_list.append(coords)
+        
+        
+        closet_trash = self.find_closest(coord_list,self.robotPose)
+        goal = self.determine_goal(closet_trash,coord_list)
+        self.get_logger().info(f'determined this is the goal: {goal}')
+
+    def world_to_grid(self, world_x, world_y):
+        """Converts real-world meters to grid index"""
+        if self.map_origin is None: return None
+        
+        grid_x = int((world_x - self.map_origin.x) / self.map_resolution)
+        grid_y = int((world_y - self.map_origin.y) / self.map_resolution)
+        return (grid_x, grid_y)
+
+    def find_closest(self,trashList, robotPose):
         closest_dist = math.inf
         closest_trash = None
-        for key, _ in trashDict:
-            Euclideandist = math.sqrt((key[0] - robotPose[0]) **2 + (key[1] - robotPose[1] )** 2 )
+        for coords in trashList:
+            Euclideandist = math.sqrt((coords[0] - robotPose[0]) **2 + (coords[1] - robotPose[1] )** 2 )
             if Euclideandist < closest_dist:
                 closest_dist = Euclideandist
-                closest_trash = key
+                closest_trash = coords
 
         return closest_trash
     
-    def determine_goal(self,closest_trash,trashDict):
+    def determine_goal(self,closest_trash,trashList):
         nearby_trash = []
-        for key, _ in trashDict:
-            x,y = key
-            Euclideandist = math.sqrt((x-closest_trash[0])**2 + (y-closest_trash[1])**2)
-            if Euclideandist < self.arm_workspace_radius*2: #use the diameter to allow the robot to be just able to grab both without moving
-                if self.is_path_clear('occupancy grid conatining values for obstacles', (closest_trash[0], closest_trash[1]), (x,y)): #need to fill in the actual occupancy grid
-                    nearby_trash.append(key)
+        for coords in trashList:
+            x, y = coords
+            dist = math.sqrt((x - closest_trash[0])**2 + (y - closest_trash[1])**2)
+            
+            # Check if trash is within reach
+            if dist < self.arm_workspace_radius * 2: 
+                # Convert world coordinates (meters) to grid indices (integers)
+                start_grid = self.world_to_grid(closest_trash[0], closest_trash[1])
+                end_grid = self.world_to_grid(x, y)
+                
+                # Ensure conversion worked and then check the path
+                if start_grid and end_grid:
+                    if self.is_path_clear(self.grid_data, start_grid, end_grid):
+                        nearby_trash.append(coords)
         
         sumx = 0
         sumy = 0
@@ -113,3 +177,11 @@ class TrashPlanner(Node):
                 return False  # Path goes off-grid
                 
         return True # Path is clear
+    
+
+if __name__ == "__main__":
+    # main()
+    rclpy.init()
+    node = TrashPlanner('planner')
+    rclpy.spin(node)
+    rclpy.shutdown(node)

@@ -95,12 +95,13 @@ def generate_launch_description():
     remappings=[('/cmd_vel', '/cmd_vel_nav')],
   )
 
+  # Adding your nodes here ensures they start in the correct order
   lifecycle_nodes = [
     'map_server',
     'amcl',
     'costmap',
     'keepout_filter_mask_server',
-    'costmap_filter_info_server'
+    'costmap_filter_info_server',
   ]
 
   remappings = [('/tf', 'tf'), ('/tf_static', 'tf_static')]
@@ -164,6 +165,20 @@ def generate_launch_description():
     output='screen'
   )
 
+  goal_finder_node = Node(
+    package='a_star_smooth_planner',
+    executable='trashPlanner.py', # Ensure this matches your setup.py/CMakeLists entry
+    name='trashPlanner',
+    output='screen',
+  )
+
+  trash_generator = Node(
+    package='a_star_smooth_planner',
+    executable='trashGenerator.py', # Ensure this matches your setup.py/CMakeLists entry
+    name='trashGenerator',
+    output='screen',
+  )
+
   #--------------------------------------------------------------------------------
 
   # Create the launch description
@@ -187,5 +202,7 @@ def generate_launch_description():
   ld.add_action(nav2_amcl_node)
   ld.add_action(nav2_lifecycle_manager_node)
   ld.add_action(obstacle_generator_node)
+  ld.add_action(goal_finder_node)
+  ld.add_action(trash_generator)
 
   return ld

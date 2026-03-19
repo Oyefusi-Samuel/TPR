@@ -30,7 +30,8 @@ class obstacleController(Node):
         self.timer = self.create_timer(2.0, self.timer_callback)
 
     def timer_callback(self):
-        self.get_logger().info('Checking node functionality... Status: OK')
+        # self.get_logger().info('Checking node functionality... Status: OK')
+        pass
         
     def topic_callback(self,msg:OccupancyGrid):
         self.map = msg
