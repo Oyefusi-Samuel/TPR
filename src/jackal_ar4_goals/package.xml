@@ -8,8 +8,14 @@
   <license>TODO: License declaration</license>
 
   <depend>rclpy</depend>
+  <depend>jackal_ar4_interfaces</depend>
   <depend>geometry_msgs</depend>
   <depend>nav2_msgs</depend>
+  <depend>moveit_msgs</depend>
+  <depend>control_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>trajectory_msgs</depend>
+  <depend>shape_msgs</depend>
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>

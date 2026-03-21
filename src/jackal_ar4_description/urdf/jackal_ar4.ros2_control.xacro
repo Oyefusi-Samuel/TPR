@@ -5,18 +5,39 @@
 
   <ros2_control name="JackalAR4Hardware" type="system">
     <hardware>
-      <plugin>mock_components/GenericSystem</plugin>
+      <!-- In simulation, GazeboSimSystem bridges ros2_control to Gazebo physics.
+           In real/RViz-only mode, mock_components echoes commands as states. -->
+      <xacro:if value="$(arg is_sim)">
+        <plugin>gz_ros2_control/GazeboSimSystem</plugin>
+        <!-- position_proportional_gain: GazeboSimSystem drives joints via
+             velocity = K_p * position_error.  Default K_p = 0.1 is far too
+             weak to resist gravity on the shoulder (joint_2) and elbow
+             (joint_3), causing the arm to fall after every trajectory.
+             2.0 is the empirically-determined maximum before instability. -->
+        <param name="position_proportional_gain">2.0</param>
+      </xacro:if>
+      <xacro:unless value="$(arg is_sim)">
+        <plugin>mock_components/GenericSystem</plugin>
+      </xacro:unless>
     </hardware>
 
-    <!-- AR4 Arm Joints (always present) -->
-    <joint name="ar4_joint_1"><command_interface name="position" /><state_interface name="position" /></joint>
-    <joint name="ar4_joint_2"><command_interface name="position" /><state_interface name="position" /></joint>
-    <joint name="ar4_joint_3"><command_interface name="position" /><state_interface name="position" /></joint>
-    <joint name="ar4_joint_4"><command_interface name="position" /><state_interface name="position" /></joint>
-    <joint name="ar4_joint_5"><command_interface name="position" /><state_interface name="position" /></joint>
-    <joint name="ar4_joint_6"><command_interface name="position" /><state_interface name="position" /></joint>
-    <joint name="ar4_gripper_jaw1_joint"><command_interface name="position" /><state_interface name="position" /></joint>
-
+    <!-- AR4 Arm Joints (always present)
+         velocity state_interface is required for the JointTrajectoryController
+         to properly track trajectories and hold position between moves.
+         Without it the JTC has no velocity feedback, causing the arm to drift
+         under gravity when it transitions between trajectory segments. -->
+    <joint name="ar4_joint_1"><command_interface name="position" /><state_interface name="position" /><state_interface name="velocity" /></joint>
+    <joint name="ar4_joint_2"><command_interface name="position" /><state_interface name="position" /><state_interface name="velocity" /></joint>
+    <joint name="ar4_joint_3"><command_interface name="position" /><state_interface name="position" /><state_interface name="velocity" /></joint>
+    <joint name="ar4_joint_4"><command_interface name="position" /><state_interface name="position" /><state_interface name="velocity" /></joint>
+    <joint name="ar4_joint_5"><command_interface name="position" /><state_interface name="position" /><state_interface name="velocity" /></joint>
+    <joint name="ar4_joint_6"><command_interface name="position" /><state_interface name="position" /><state_interface name="velocity" /></joint>
+    <!-- Gripper jaws: in the same GazeboSimSystem instance as the arm to avoid
+         joint ownership races.  Two separate plugin instances on the same model
+         scan all joints non-deterministically; merging prevents one instance from
+         "stealing" jaw commands intended for the other. -->
+    <joint name="ar4_gripper_jaw1_joint"><command_interface name="position" /><state_interface name="position" /><state_interface name="velocity" /></joint>
+    <joint name="ar4_gripper_jaw2_joint"><command_interface name="position" /><state_interface name="position" /><state_interface name="velocity" /></joint>
     <!--
       Wheel joints: excluded in sim because Gazebo diff_drive owns them.
       If ros2_control also claims them it causes a TF/joint_states conflict.

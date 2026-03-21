@@ -1,0 +1,51 @@
+# ── Goal ─────────────────────────────────────────────────────────────────────
+# All poses are in ar4_base_link frame (the arm's fixed base frame on the
+# Jackal chassis).  The caller is responsible for transforming from world/map
+# frame before sending this goal.
+
+# Ordered array of trash pick poses.  Each entry may be:
+#   XYZ only  — fill orientation with (0,0,0,0); the executive will substitute
+#               the default downward-pointing gripper orientation.
+#   Full 6DOF — orientation is used as-is.
+geometry_msgs/Pose[] pick_poses
+
+# Place pose for every item in this workspace batch.
+# Ignored when use_default_place is true.
+geometry_msgs/Pose place_pose
+
+# When true the executive uses the default rear-bin place pose and ignores
+# the place_pose field above.
+bool use_default_place
+
+---
+# ── Result ───────────────────────────────────────────────────────────────────
+
+# True only if every item in pick_poses was successfully picked and placed.
+bool success
+
+# Total items successfully picked and placed.
+int32 picked_count
+
+# Items with no IK solution or goal in collision (workspace / kinematic limit).
+# The mission planner should replan these poses — the robot may need to
+# reposition before they become reachable.
+int32 unreachable_count
+int32[] unreachable_indices
+
+# Items that failed due to planning timeout, motion plan invalidation, or
+# other transient planner errors.  A retry at the same pose may succeed, or
+# the mission planner may choose to replan the workspace.
+int32 failed_count
+int32[] failed_indices
+
+---
+# ── Feedback ─────────────────────────────────────────────────────────────────
+
+# Zero-based index of the pick currently being attempted.
+int32 current_index
+
+# Total number of picks in this workspace batch.
+int32 total
+
+# Human-readable description of the current step.
+string status

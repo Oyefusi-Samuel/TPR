@@ -39,10 +39,24 @@
         </geometry>
         <material name="clearpath_dark_grey" />
       </visual>
+      <!-- Split the chassis collision into a lower body and a thin top plate.
+           The original single solid box (full chassis_height) blocked the arm
+           from planning to any pose below ar4_base_link because the box top
+           surface sits only ~10 mm below the arm mount.
+           The lower body covers the structural chassis (0 → 0.130 m).
+           The top plate (0.130 → 0.140 m) represents the deck surface.
+           The 44 mm gap above (0.140 → 0.184 m) is the open bay where the
+           arm mount passes through, freeing the planner for downward reaches. -->
       <collision>
-        <origin xyz="0 0 ${chassis_height/2}"/>
+        <origin xyz="0 0 0.065"/>
         <geometry>
-          <box size="${chassis_length} ${chassis_width} ${chassis_height}"/>
+          <box size="${chassis_length} ${chassis_width} 0.130"/>
+        </geometry>
+      </collision>
+      <collision>
+        <origin xyz="0 0 0.135"/>
+        <geometry>
+          <box size="${chassis_length} ${chassis_width} 0.010"/>
         </geometry>
       </collision>
       <inertial>

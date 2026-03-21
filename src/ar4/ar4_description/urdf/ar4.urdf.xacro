@@ -45,7 +45,7 @@
     <parent link="link_1"/>
     <child link="link_2"/>
     <axis xyz="0 0 1"/>
-    <limit lower="${-42.0 / 180.0 * pi}" upper="${90.0 / 180.0 * pi}" effort="100" velocity="0.5"/>
+    <limit lower="${-42.0 / 180.0 * pi}" upper="${135.0 / 180.0 * pi}" effort="100" velocity="0.5"/>
   </joint>
 
   <xacro:link link_name="link_3"

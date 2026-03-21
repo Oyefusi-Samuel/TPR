@@ -506,7 +506,7 @@
     <parent link="ar4_link_1"/>
     <child link="ar4_link_2"/>
     <axis xyz="0 0 1"/>
-    <limit effort="100" lower="-0.7330382858376184" upper="1.5707963267948966" velocity="0.5"/>
+    <limit effort="100" lower="-0.7330382858376184" upper="2.3561944901923448" velocity="0.5"/>
   </joint>
   <link name="ar4_link_3">
     <origin rpy="0 0 0" xyz="0 0 0"/>

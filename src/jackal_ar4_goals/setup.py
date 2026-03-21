@@ -24,8 +24,10 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'send_nav_goal = jackal_ar4_goals.send_nav_goal:main',
-            'send_arm_goal = jackal_ar4_goals.send_arm_goal:main',
+            'send_nav_goal          = jackal_ar4_goals.send_nav_goal:main',
+            'send_arm_goal          = jackal_ar4_goals.send_arm_goal:main',
+            'pick_and_place         = jackal_ar4_goals.pick_and_place:main',
+            'workspace_executive    = jackal_ar4_goals.workspace_executive:main',
         ],
     },
 )

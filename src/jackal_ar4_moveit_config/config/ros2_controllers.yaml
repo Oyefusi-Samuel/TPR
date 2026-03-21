@@ -24,12 +24,47 @@ arm_controller:
       - position
     state_interfaces:
       - position
+      - velocity
+    # NOTE: JTC PID gains only apply when using effort command_interface.
+    # With position command_interface (as used here), gains are ignored —
+    # position-holding is handled by GazeboSimSystem's position_proportional_gain
+    # (set to 2.0 in jackal_ar4.ros2_control.xacro) and URDF joint damping.
+    constraints:
+      # goal_time: extra sim-seconds the JTC will wait AFTER trajectory end for
+      # joints to land within their goal tolerances before declaring failure.
+      # Must be non-zero for goal tolerances to be enforced.
+      # 10 sim-seconds is generous for a 0.15x realtime simulation.
+      goal_time: 10.0
+      # stopped_velocity_tolerance: joints must be nearly still at goal.
+      stopped_velocity_tolerance: 0.05
+      ar4_joint_1:
+        goal: 0.05        # ~3 degrees — required position accuracy at goal
+      ar4_joint_2:
+        goal: 0.05
+      ar4_joint_3:
+        goal: 0.05
+      ar4_joint_4:
+        goal: 0.05
+      ar4_joint_5:
+        goal: 0.05
+      ar4_joint_6:
+        goal: 0.05
 
 ar_gripper_controller:
   ros__parameters:
     joints:
       - ar4_gripper_jaw1_joint
+      - ar4_gripper_jaw2_joint
     command_interfaces:
       - position
     state_interfaces:
       - position
+      - velocity
+    # goal_time: 0.0 = fire-and-forget.  The action returns SUCCESS as soon as
+    # the trajectory clock expires, regardless of whether the jaw reached the
+    # target position.  This prevents a "grasp blocked by object" scenario
+    # from ever failing the action — the jaw simply stalls and we detect it
+    # in pick_and_place.py by monitoring joint positions.
+    constraints:
+      goal_time: 0.0
+      stopped_velocity_tolerance: 0.1

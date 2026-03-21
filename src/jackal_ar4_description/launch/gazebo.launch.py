@@ -9,7 +9,7 @@ Launch examples:
 
 import os
 
-from ament_index_python.packages import get_package_share_directory, PackageNotFoundError
+from ament_index_python.packages import get_package_share_directory, get_package_prefix, PackageNotFoundError
 from launch import LaunchDescription
 from launch.actions import (
     DeclareLaunchArgument, ExecuteProcess,
@@ -60,7 +60,19 @@ def generate_launch_description():
     if models_dir:
         gz_resource_paths.append(models_dir)
 
-    gz_env = {'GZ_SIM_RESOURCE_PATH': ':'.join(gz_resource_paths)}
+    # GZ_SIM_SYSTEM_PLUGIN_PATH must include the ROS lib dir so Gazebo can find
+    # libgz_ros2_control-system.so (installed by ros-jazzy-gz-ros2-control).
+    # The ROS setup.bash sets this in interactive shells but the value is not
+    # reliably inherited by the Gazebo subprocess launched here.
+    gz_plugin_paths = [get_package_prefix('gz_ros2_control') + '/lib']
+    existing = os.environ.get('GZ_SIM_SYSTEM_PLUGIN_PATH', '')
+    if existing:
+        gz_plugin_paths.append(existing)
+
+    gz_env = {
+        'GZ_SIM_RESOURCE_PATH': ':'.join(gz_resource_paths),
+        'GZ_SIM_SYSTEM_PLUGIN_PATH': ':'.join(gz_plugin_paths),
+    }
 
     # ── Args ──────────────────────────────────────────────────────────────
     world_arg = DeclareLaunchArgument(
@@ -88,6 +100,7 @@ def generate_launch_description():
             os.path.join(pkg_description, 'urdf', 'jackal_ar4.urdf.xacro'),
             ' is_sim:=true',
             ' use_platform_controllers:=false',
+            ' gazebo_controllers:=', controllers_yaml,
         ]),
         value_type=str,
     )
@@ -168,23 +181,18 @@ def generate_launch_description():
     )
 
     # ── 7. Controller Manager ─────────────────────────────────────────────
-    # Standalone ros2_control_node — delayed until sim clock is flowing.
-    # (gz_ros2_control URDF plugin is not yet active; this node owns
-    #  the hardware interface and allows the spawners below to activate.)
-    controller_manager = TimerAction(period=10.0, actions=[Node(
-        package='controller_manager',
-        executable='ros2_control_node',
-        name='controller_manager',
-        parameters=[robot_description, controllers_yaml, {'use_sim_time': True}],
-        output='screen',
-    )])
+    # The gz_ros2_control Gazebo plugin (embedded in the URDF) hosts the
+    # controller_manager internally — no standalone ros2_control_node needed.
+    # The plugin activates when Gazebo spawns the robot (t=8s).
 
-    # ── 8. Spawners — delayed well after controller_manager + sim clock ───
+    # ── 8. Spawners — delayed well after robot spawn + gz_ros2_control init ─
+    # --controller-manager-timeout 30 lets spawners retry while the plugin CM
+    # finishes loading, avoiding a race with complex world load times.
     def spawner(name, delay):
         return TimerAction(period=delay, actions=[Node(
             package='controller_manager',
             executable='spawner',
-            arguments=[name],
+            arguments=[name, '--controller-manager-timeout', '30'],
             parameters=[{'use_sim_time': True}],
             output='screen',
         )])
@@ -223,7 +231,27 @@ def generate_launch_description():
     move_group = TimerAction(period=16.0, actions=[Node(
         package='moveit_ros_move_group',
         executable='move_group',
-        parameters=[moveit_config.to_dict(), {'use_sim_time': True}],
+        parameters=[moveit_config.to_dict(), {
+            'use_sim_time': True,
+            # Tolerate start-state joint values that land exactly on a boundary
+            # (e.g. ar4_joint_6 at -2.70526 after hitting its limit).
+            # The adapter clamps to the boundary rather than rejecting the plan.
+            # In Gazebo the JointTrajectoryController can overshoot a joint
+            # limit significantly (ar4_joint_2 overshoots by ~1.57 rad when
+            # reaching a pose at the edge of the workspace), causing
+            # CheckStartStateBounds to reject the next plan.
+            # CheckStartStateBounds CLAMPS the start state to the nearest
+            # valid bound when the deviation is within this value, so 2.0 rad
+            # covers any realistic overshoot while still clamping (not
+            # ignoring) the out-of-bounds value before planning.
+            'start_state_max_bounds_error': 2.0,
+            # Gazebo sim has latency between joint-state publication and
+            # trajectory dispatch, and joints can still be settling after a
+            # trajectory completes (especially joint_6 after a wrist rotation).
+            # 0.1 rad (~5.7°) gives enough slack for post-trajectory settle
+            # without masking genuinely bad start states.
+            'trajectory_execution.allowed_start_tolerance': 0.1,
+        }],
         output='screen',
     )])
 
@@ -250,11 +278,10 @@ def generate_launch_description():
         tf_static_bridge,
         wheel_relay,
         map_to_odom,
-        spawn_robot,       # t=3s
-        controller_manager,# t=5s
-        spawn_jsb,         # t=8s
-        spawn_arm,         # t=9s
-        spawn_gripper,     # t=9s
+        spawn_robot,       # t=8s  — robot spawned, gz_ros2_control plugin starts
+        spawn_jsb,         # t=13s — joint_state_broadcaster
+        spawn_arm,         # t=14s — arm_controller (JointTrajectoryController)
+        spawn_gripper,     # t=14s — ar_gripper_controller
         nav2,
         move_group,        # t=11s
         rviz,              # t=12s

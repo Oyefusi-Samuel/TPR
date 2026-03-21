@@ -30,7 +30,11 @@
       <parent link="${prefix}base_link"/>
       <child link="${prefix}link_1"/>
       <axis xyz="0 0 1"/>
-      <limit lower="${-170.0 / 180.0 * pi}" upper="${170.0 / 180.0 * pi}" effort="100" velocity="0.5"/>
+      <!-- velocity="2.0" > joint_limits.yaml max_velocity (1.0) so Gazebo never
+           caps below what MoveIt plans (0.8 * 1.0 = 0.8 rad/s) -->
+      <limit lower="${-170.0 / 180.0 * pi}" upper="${170.0 / 180.0 * pi}" effort="100" velocity="2.0"/>
+      <!-- damping: viscous drag kills overshoot; friction: static hold resists gravity at rest -->
+      <dynamics damping="0.1" friction="0.02"/>
     </joint>
 
     <xacro:link link_name="${prefix}link_2"
@@ -46,7 +50,11 @@
       <parent link="${prefix}link_1"/>
       <child link="${prefix}link_2"/>
       <axis xyz="0 0 1"/>
-      <limit lower="${-42.0 / 180.0 * pi}" upper="${90.0 / 180.0 * pi}" effort="100" velocity="0.5"/>
+      <limit lower="${-42.0 / 180.0 * pi}" upper="${135.0 / 180.0 * pi}" effort="100" velocity="2.0"/>
+      <!-- joint_2 (shoulder) carries the full arm weight ~1.1 kg at 0.3 m lever.
+           Damping must be high enough to resist gravity but not so high that the
+           joint can't track the MoveIt trajectory (which plans at 0.8 rad/s). -->
+      <dynamics damping="0.15" friction="0.05"/>
     </joint>
 
     <xacro:link link_name="${prefix}link_3"
@@ -62,7 +70,9 @@
       <parent link="${prefix}link_2"/>
       <child link="${prefix}link_3"/>
       <axis xyz="0 0 1"/>
-      <limit lower="${-89.0 / 180.0 * pi}" upper="${52.0 / 180.0 * pi}" effort="100" velocity="0.5"/>
+      <limit lower="${-89.0 / 180.0 * pi}" upper="${52.0 / 180.0 * pi}" effort="100" velocity="2.0"/>
+      <!-- joint_3 (elbow) carries links 3-6 ~0.65 kg; second most gravity-loaded joint -->
+      <dynamics damping="0.10" friction="0.03"/>
     </joint>
 
     <xacro:link link_name="${prefix}link_4"
@@ -78,7 +88,8 @@
       <parent link="${prefix}link_3"/>
       <child link="${prefix}link_4"/>
       <axis xyz="0 0 1"/>
-      <limit lower="${-1 * robot_parameters['j4_limit']}" upper="${robot_parameters['j4_limit']}" effort="100" velocity="0.5"/>
+      <limit lower="${-1 * robot_parameters['j4_limit']}" upper="${robot_parameters['j4_limit']}" effort="100" velocity="2.0"/>
+      <dynamics damping="0.05" friction="0.01"/>
     </joint>
 
     <xacro:link link_name="${prefix}link_5"
@@ -94,7 +105,8 @@
       <parent link="${prefix}link_4"/>
       <child link="${prefix}link_5"/>
       <axis xyz="0 0 1"/>
-      <limit lower="${-105.0 / 180.0 * pi}" upper="${105.0 / 180.0 * pi}" effort="100" velocity="1.0"/>
+      <limit lower="${-105.0 / 180.0 * pi}" upper="${105.0 / 180.0 * pi}" effort="100" velocity="3.0"/>
+      <dynamics damping="0.05" friction="0.01"/>
     </joint>
 
     <xacro:link link_name="${prefix}link_6"
@@ -110,7 +122,10 @@
       <parent link="${prefix}link_5"/>
       <child link="${prefix}link_6"/>
       <axis xyz="0 0 1"/>
-      <limit lower="${-1.0 * robot_parameters['j6_limit']}" upper="${robot_parameters['j6_limit']}" effort="100" velocity="1.0"/>
+      <limit lower="${-1.0 * robot_parameters['j6_limit']}" upper="${robot_parameters['j6_limit']}" effort="100" velocity="3.0"/>
+      <!-- joint_6 (wrist rotation) has been the main source of allowed_start_tolerance
+           violations — light damping reduces post-trajectory oscillation -->
+      <dynamics damping="0.05" friction="0.01"/>
     </joint>
     <xacro:include filename="$(find ar4_description)/urdf/gripper/ar_gripper_macro.xacro" />
     <xacro:ar_gripper tf_prefix="${prefix}" parent="${prefix}link_6" />

@@ -77,7 +77,24 @@
       <parent link="${tf_prefix}gripper_base_link"/>
       <child link="${tf_prefix}gripper_jaw1_link"/>
       <axis xyz="-1 0 0"/>
-      <limit lower="0" upper="0.014" effort="-1" velocity="1.0"/>
+      <!-- effort must be positive (force limit in N). Original -1 caused Gazebo
+           to apply zero drive force, preventing the jaw from moving at all. -->
+      <!-- lower=-0.002: Gazebo spawns this joint at ~0 with floating-point noise
+           that can land at -9e-15 (slightly below 0).  A joint below its lower
+           limit triggers ODE's constraint enforcement, which fights the K_p
+           velocity drive even in the correct (opening) direction, permanently
+           locking the jaw.  Setting lower=-0.002 keeps the nominal closed
+           position (0.0 m) well above the hard stop so the constraint is
+           never active at spawn time.
+           upper=0.016: the K_p drive and arm-motion vibration can push the jaw
+           slightly past 0.014 after opening.  A jaw above its upper limit
+           triggers the same ODE constraint, locking jaw2 on the close stroke.
+           0.016 keeps the nominal open position (0.014 m) well below the hard
+           stop so the constraint never activates after an open command. -->
+      <limit lower="-0.002" upper="0.016" effort="20" velocity="1.0"/>
+      <!-- damping prevents oscillation across the 14 mm travel; friction holds
+           the jaw against whatever load is in the gripper at rest -->
+      <dynamics damping="0.1" friction="0.01"/>
     </joint>
 
     <joint name="${tf_prefix}gripper_jaw2_joint" type="prismatic">
@@ -85,8 +102,16 @@
       <parent link="${tf_prefix}gripper_base_link"/>
       <child link="${tf_prefix}gripper_jaw2_link"/>
       <axis xyz="-1 0 0"/>
-      <limit lower="0" upper="0.014" effort="1000" velocity="1.0"/>
-      <mimic joint="${tf_prefix}gripper_jaw1_joint" multiplier="1" offset="0"/>
+      <!-- <mimic> removed: jaw2 is now an explicitly commanded joint via
+           ros2_control.  Keeping <mimic> while also registering a position
+           command interface causes GazeboSimSystem to fail initialisation
+           (ODE physics applies the mimic constraint AND ros2_control tries
+           to drive the joint independently, creating a conflict that prevents
+           any controllers — including joint_state_broadcaster — from loading,
+           which breaks the entire TF tree).  Joint state is published by
+           joint_state_broadcaster; robot_state_publisher picks it up normally. -->
+      <limit lower="-0.002" upper="0.016" effort="20" velocity="1.0"/>
+      <dynamics damping="0.1" friction="0.01"/>
     </joint>
 
   </xacro:macro>
