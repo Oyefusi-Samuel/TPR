@@ -74,7 +74,8 @@ class obstacleController(Node):
 
 if __name__ == "__main__":
     # main()
-    rclpy.init()
-    node = obstacleController(10,10)
-    rclpy.spin(node)
-    rclpy.shutdown(node)
+    pass
+    # rclpy.init()
+    # node = obstacleController(10,10)
+    # rclpy.spin(node)
+    # rclpy.shutdown(node)

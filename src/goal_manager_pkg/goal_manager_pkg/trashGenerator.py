@@ -29,11 +29,10 @@ class GoalEmitter(Node):
         self.get_logger().info(f'Published {len(msg.poses)} goals')
 
 def main():
-    pass
-    # rclpy.init()
-    # node = GoalEmitter()
-    # rclpy.spin(node)
-    # rclpy.shutdown(node)
+    rclpy.init()
+    node = GoalEmitter()
+    rclpy.spin(node)
+    rclpy.shutdown(node)
 
 if __name__ == "__main__":
     main()

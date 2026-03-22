@@ -197,11 +197,10 @@ class TrashPlanner(Node):
     
 
 def main():
-    pass
-    # rclpy.init()
-    # node = TrashPlanner('planner')
-    # rclpy.spin(node)
-    # rclpy.shutdown(node)
+    rclpy.init()
+    node = TrashPlanner('planner')
+    rclpy.spin(node)
+    rclpy.shutdown(node)
 
 if __name__ == "__main__":
     main()
