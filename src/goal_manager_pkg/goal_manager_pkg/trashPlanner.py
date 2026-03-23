@@ -169,6 +169,14 @@ class TrashPlanner(Node):
 
             newx = self.robotPose[0] + (dx*ratio)
             newy = self.robotPose[1] + (dy*ratio)
+            gx,gy = self.world_to_grid(newx,newy)
+
+            if self.grid_data[gy][gx] > 20: #checks if this would go into the wall!!              
+                newLen = currLen + self.arm_workspace_radius/2.0
+                ratio = newLen / currLen
+
+                newx = self.robotPose[0] + (dx*ratio)
+                newy = self.robotPose[1] + (dy*ratio)
             return (newx,newy)
         #for multiple pieces of trash
         sumx = 0
