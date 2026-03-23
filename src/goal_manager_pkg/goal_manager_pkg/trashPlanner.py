@@ -107,13 +107,31 @@ class TrashPlanner(Node):
         return (grid_x, grid_y)
 
     def find_closest(self,trashList, robotPose):
+        # self.get_logger().info(f'NO GRID DATA FOR COSTMAP CALCULATIONS! Grid data is {self.grid_data}')
         closest_dist = math.inf
         closest_trash = None
         for coords in trashList:
+            gridx , gridy = self.world_to_grid(coords[0],coords[1])
+
+            ############################
+            # Need some quick algorithm which can 
+            originGrid = self.world_to_grid(robotPose[0],robotPose[1])
+            endGrid = (gridx,gridy)
+            obstacles_in_way = self.is_path_clear(self.grid_data,originGrid,endGrid)      
+            ############################
+
             Euclideandist = math.sqrt((coords[0] - robotPose[0]) **2 + (coords[1] - robotPose[1] )** 2 )
-            if Euclideandist < closest_dist:
-                closest_dist = Euclideandist
-                closest_trash = coords
+
+            match obstacles_in_way: #prioritizes anypath with no obstacles in way. and adds a 3x penalty to all paths through walls. 
+                case False:
+                    if Euclideandist < closest_dist and self.grid_data[gridy][gridx] <= 20:
+                        closest_dist = Euclideandist
+                        closest_trash = coords
+
+                case True:
+                    if Euclideandist*3.0 < closest_dist and self.grid_data[gridy][gridx] <= 20:
+                        closest_dist = Euclideandist*3.0
+                        closest_trash = coords
 
         return closest_trash
     
@@ -134,12 +152,27 @@ class TrashPlanner(Node):
                     if self.is_path_clear(self.grid_data, start_grid, end_grid):
                         nearby_trash.append(coords)
         
+        
+        if len(nearby_trash) == 1: 
+            x,y = nearby_trash[0]
+            rx = self.robotPose[0]
+            ry = self.robotPose[1]
+            
+            dx = x - rx
+            dy = y - ry
+            currLen = math.sqrt(dx**2 + dy**2)
+            if currLen <= self.arm_workspace_radius/2.0:
+                return (self.robotPose[0],self.robotPose[1]) # Or handle as an error
+            
+            newLen = currLen - self.arm_workspace_radius/2.0
+            ratio = newLen / currLen
+
+            newx = self.robotPose[0] + (dx*ratio)
+            newy = self.robotPose[1] + (dy*ratio)
+            return (newx,newy)
+        #for multiple pieces of trash
         sumx = 0
         sumy = 0
-        ################################################
-        #FUTURE UPDATES: Ensure wall geometry is taken into account. 
-        # 2 pieces of trash on either side of the wall shouldn't be matched. 
-        #################################################
         for x,y in nearby_trash:
             sumx += x
             sumy += y
@@ -188,7 +221,7 @@ class TrashPlanner(Node):
         for x, y in line_path:
             # Boundary check for safety
             if 0 <= x < len(grid) and 0 <= y < len(grid[0]):
-                if grid[x][y] >= lethal_value:
+                if grid[y][x] >= lethal_value:
                     return False  # Obstacle detected
             else:
                 return False  # Path goes off-grid

@@ -16,7 +16,7 @@ class GoalEmitter(Node):
         msg.header.frame_id = 'map' # Matches your ROS 2 map frame
 
         # Create dummy goals (replace with your actual goal detection)
-        positions = [(2.5, 2), (2.8, 2.4), (4.0, 4.0)] 
+        positions = [(2.5, 2), (2.8, 2.4), (4.0, 4.0),[1.2,2],[1.0,2], [-2,1],[2,1]] 
         
         for x, y in positions:
             p = Pose()
