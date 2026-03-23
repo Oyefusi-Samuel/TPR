@@ -34,7 +34,7 @@ class TrashPlanner(Node):
         self.tf_listener = TransformListener(self.tf_buffer, self)
         
         # Initialize pose to a safe default
-        self.timer = self.create_timer(2.0, self.check_for_achieved_goals)
+        self.timer = self.create_timer(0.1, self.check_for_achieved_goals)
         self.grid_data = None
         self.map_resolution = 0.0
         self.map_origin = None
@@ -173,7 +173,7 @@ class TrashPlanner(Node):
             newy = self.robotPose[1] + (dy*ratio)
             gx,gy = self.world_to_grid(newx,newy)
 
-            if self.grid_data[gy][gx] > 20: #checks if this would go into the wall!!              
+            if self.grid_data[gy][gx] > 100: #checks if this would go into the wall!!              
                 newLen = currLen + self.arm_workspace_radius/2.0
                 ratio = newLen / currLen
 
@@ -264,7 +264,7 @@ class TrashPlanner(Node):
             msg.poses.append(p)
 
         self.goal_remover.publish(msg)  
-
+    
 def main():
     rclpy.init()
     node = TrashPlanner('planner')

@@ -201,7 +201,7 @@ def generate_launch_description():
   ld.add_action(nav2_costmap_2d_node)
   ld.add_action(nav2_amcl_node)
   ld.add_action(nav2_lifecycle_manager_node)
-  ld.add_action(obstacle_generator_node)
+  # ld.add_action(obstacle_generator_node)
   ld.add_action(goal_finder_node)
   ld.add_action(trash_generator)
 

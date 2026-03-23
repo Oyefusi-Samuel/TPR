@@ -3,6 +3,7 @@ import rclpy
 from rclpy.node import Node
 import subprocess
 from geometry_msgs.msg import PoseArray, Pose
+import math
 
 class GoalEmitter(Node):
     def __init__(self):
@@ -12,7 +13,17 @@ class GoalEmitter(Node):
         self.timer = self.create_timer(2.0, self.publish_goals)
         self.sub = self.create_subscription(PoseArray,'/removed_goals',self.remove_goals_callback,10)
         
-        self.positions = [(2.5, 2), (2.8, 2.4), (4.0, 4.0),(1.2,2),(1.0,2), (2.4,1), (2.4,-0.4)] 
+        self.trash_data = [
+            {'Name': 'bottle0', 'pos': (2.5,2.0)},
+            {'Name': 'bottle1', 'pos': (2.8,2.4)},
+            {'Name': 'bottle2', 'pos': (4.0,4.0)},
+            {'Name': 'bottle3', 'pos': (1.2,2.0)},
+            {'Name': 'bottle4', 'pos': (1.0,2.0)},
+            {'Name': 'bottle5', 'pos': (2.4,1.0)},
+            {'Name': 'bottle6', 'pos': (2.4,-0.4)},
+            {'Name': 'bottle7', 'pos': (0.4,-1.4)},
+            ]
+        # self.positions = [(2.5, 2), (2.8, 2.4), (4.0, 4.0),(1.2,2),(1.0,2), (2.4,1), (2.4,-0.4)] 
                 
         self.spawn_all_trash()
 
@@ -21,7 +32,8 @@ class GoalEmitter(Node):
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.header.frame_id = 'map' # Matches your ROS 2 map frame
 
-        for x, y in self.positions:
+        for item in self.trash_data:
+            x,y = item['pos']
             p = Pose()
             p.position.x = float(x)
             p.position.y = float(y)
@@ -34,13 +46,22 @@ class GoalEmitter(Node):
     def remove_goals_callback(self,msg):
         for p in msg.poses:
             try:
-                self.positions.remove((p.position.x,p.position.y))
+                x, y = p.position.x, p.position.y
+                self.remove_bottle_at_coord(target_x=x,target_y=y)
+                for item in self.trash_data:
+                    x2, y2 = item['pos']
+                    if (x2-x) < 1e-9 and (y2 -y) < 1e-9:
+                        self.trash_data.remove(item)
+                
             except ValueError:
                 self.get_logger().warn(f'Goal {(p.position.x,p.position.y)} not in list of goals!')
         
+
+    #gazebo code below   
     def spawn_all_trash(self):
-        for i, (x, y) in enumerate(self.positions):
-            self.spawn_bottle(f"bottle_{i}", x, y)
+        for item in self.trash_data:
+            x,y = item['pos']
+            self.spawn_bottle(item['Name'],x,y)
 
     def spawn_bottle(self, name, x, y):
         """Uses subprocess to call the Gazebo Harmonic creation tool."""
@@ -62,12 +83,6 @@ class GoalEmitter(Node):
             self.get_logger().info(f"Spawn command sent for {name} at ({x}, {y})")
         except Exception as e:
             self.get_logger().error(f"Failed to launch spawn process for {name}: {e}")
-
-    def spawn_all_trash(self):
-        """Loops through initial positions and populates the sim."""
-        self.get_logger().info("Spawning initial trash in Gazebo...")
-        for i, (x, y) in enumerate(self.positions):
-            self.spawn_bottle(f"bottle_{i}", x, y)
     
     def get_bottle_sdf(self, name):
         """Returns the SDF string for the bottle model."""
@@ -98,6 +113,37 @@ class GoalEmitter(Node):
           </model>
         </sdf>
         """
+    def remove_bottle_at_coord(self, target_x, target_y):
+        found_item = None
+        tolerance = 0.3 
+
+        for item in self.trash_data:
+            dist = math.dist(item["pos"], (target_x, target_y))
+            if dist < tolerance:
+                found_item = item
+                break
+
+        if found_item:
+            name_to_remove = found_item["Name"]
+            
+            # We construct the EXACT string that worked for you in the terminal
+            # Note the use of double quotes for the outer string and single quotes for the name
+            command = (
+                f"gz service -s /world/room_with_walls/remove "
+                f"--reqtype gz.msgs.Entity "
+                f"--reptype gz.msgs.Boolean "
+                f"--timeout 2000 "
+                f"--req \"name: '{name_to_remove}', type: MODEL\""
+            )
+            
+            try:
+                # shell=True is critical here to handle the nested quotes in the --req flag
+                subprocess.Popen(command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                
+                self.trash_data.remove(found_item)
+                self.get_logger().info(f"Successfully triggered Gazebo removal for {name_to_remove}")
+            except Exception as e:
+                self.get_logger().error(f"Shell command failed: {e}")
 
 def main():
     rclpy.init()
