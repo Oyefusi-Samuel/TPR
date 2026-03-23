@@ -9,6 +9,7 @@ from geometry_msgs.msg import PoseArray, PoseStamped
 from nav_msgs.msg import Odometry
 
 import random
+from typing import Optional
 from random import *
 import math
 import numpy as np
@@ -24,20 +25,21 @@ class TrashPlanner(Node):
             self.costmap_callback,
             10)
         self.goal_sub = self.create_subscription(
-            PoseArray, 'detected_goals', self.process_goals, 10)
+            PoseArray, '/detected_goals', self.process_goals, 10)
         
         self.goal_pub = self.create_publisher(PoseStamped, '/planned_goal', 10)
-        
+        self.goal_remover = self.create_publisher(PoseArray, '/removed_goals', 10)
         # Setup TF2 Listener
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
         
         # Initialize pose to a safe default
-        
+        self.timer = self.create_timer(2.0, self.check_for_achieved_goals)
         self.grid_data = None
         self.map_resolution = 0.0
         self.map_origin = None
         self.robotPose = None
+        self.currGoals:Optional[list[tuple[float,float]]] = None
 
     def update_robot_pose(self):
         try:
@@ -71,7 +73,7 @@ class TrashPlanner(Node):
     def process_goals(self,msg):
         self.update_robot_pose()
         if not msg.poses or self.robotPose is None or self.grid_data is None:
-            self.get_logger().info(f'missing an element for calculation!, \n poses are {msg.poses} \n robotPose is {self.robotPose} \n gridData is {self.grid_data} ')
+            # self.get_logger().info(f'missing an element for calculation!, \n poses are {msg.poses} \n robotPose is {self.robotPose} \n gridData is {self.grid_data} ')
             return
         coord_list = []
         for p in msg.poses:
@@ -152,7 +154,7 @@ class TrashPlanner(Node):
                     if self.is_path_clear(self.grid_data, start_grid, end_grid):
                         nearby_trash.append(coords)
         
-        
+        self.currGoals = nearby_trash
         if len(nearby_trash) == 1: 
             x,y = nearby_trash[0]
             rx = self.robotPose[0]
@@ -162,7 +164,7 @@ class TrashPlanner(Node):
             dy = y - ry
             currLen = math.sqrt(dx**2 + dy**2)
             if currLen <= self.arm_workspace_radius/2.0:
-                return (self.robotPose[0],self.robotPose[1]) # Or handle as an error
+                return (self.robotPose[0],self.robotPose[1]) 
             
             newLen = currLen - self.arm_workspace_radius/2.0
             ratio = newLen / currLen
@@ -240,7 +242,28 @@ class TrashPlanner(Node):
                 
         return True # Path is clear
     
-    
+    def check_for_achieved_goals(self):
+        goals_to_remove = []
+        if self.currGoals:
+            for goal in self.currGoals:
+                if self.arm_workspace_radius > abs(self.robotPose[0] - goal[0]) > 0 and self.arm_workspace_radius > abs(self.robotPose[1]-goal[1]) > 0:
+                    goals_to_remove.append(goal)
+            if len(goals_to_remove) > 0:
+                self.remove_goals(goals_to_remove)
+
+    def remove_goals(self,goal_list:list[tuple[float,float]]):
+        msg = PoseArray()
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.header.frame_id = 'map' # Matches your ROS 2 map frame
+
+        for x, y in goal_list:
+            p = Pose()
+            p.position.x = float(x)
+            p.position.y = float(y)
+            p.orientation.w = 1.0 # Neutral orientation
+            msg.poses.append(p)
+
+        self.goal_remover.publish(msg)  
 
 def main():
     rclpy.init()
