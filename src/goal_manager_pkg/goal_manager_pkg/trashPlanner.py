@@ -177,7 +177,11 @@ class TrashPlanner(Node):
             sumx += x
             sumy += y
         centroid = ((sumx)/len(nearby_trash),(sumy)/len(nearby_trash)) #uses geometric average (centroid) of the object to be equadistant to in the middle of the points
-        return centroid
+        gridx, gridy = self.world_to_grid(centroid)
+        if self.grid_data[gridy][gridx] >= 100:
+            return closest_trash
+        else:  
+            return centroid
             
     def get_line(self, start, end):
         """
@@ -227,6 +231,7 @@ class TrashPlanner(Node):
                 return False  # Path goes off-grid
                 
         return True # Path is clear
+    
     
 
 def main():

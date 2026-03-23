@@ -28,6 +28,9 @@ class GoalEmitter(Node):
         self.publisher_.publish(msg)
         self.get_logger().info(f'Published {len(msg.poses)} goals')
 
+    
+        
+
 def main():
     rclpy.init()
     node = GoalEmitter()
