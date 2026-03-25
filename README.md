@@ -267,7 +267,7 @@ In RViz, use the **2D Goal Pose** button in the toolbar, then click anywhere on 
 Alternatively from the terminal:
 
 ```bash
-ros2 run jackal_ar4_goals send_nav_goal.py
+ros2 run jackal_ar4_goals send_nav_goal
 ```
 
 ### Arm Goal (MoveIt)
@@ -282,7 +282,7 @@ The arm will move in both RViz and Gazebo simultaneously.
 Alternatively from the terminal:
 
 ```bash
-ros2 run jackal_ar4_goals send_arm_goal.py
+ros2 run jackal_ar4_goals send_arm_goal
 ```
 
 ---
