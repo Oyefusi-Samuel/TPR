@@ -143,7 +143,7 @@ def generate_launch_description():
             '/cmd_vel@geometry_msgs/msg/Twist]gz.msgs.Twist',
             '/odom@nav_msgs/msg/Odometry[gz.msgs.Odometry',
             '/wheel_joint_states@sensor_msgs/msg/JointState[gz.msgs.Model',
-            # LiDAR scan — Gazebo→ROS, topic name matches gz_frame_id in URDF
+            # LiDAR: Gazebo→ROS (topic matches gz_frame_id in URDF)
             '/lidar/scan@sensor_msgs/msg/LaserScan[gz.msgs.LaserScan',
         ],
         parameters=[{'use_sim_time': True}],
@@ -168,6 +168,21 @@ def generate_launch_description():
         executable='relay',
         name='wheel_state_relay',
         arguments=['/wheel_joint_states', '/joint_states'],
+        parameters=[{'use_sim_time': True}],
+        output='screen',
+    )
+
+    # ── 5b. cmd_vel_smoothed → cmd_vel relay ─────────────────────────────
+    # Nav2's velocity_smoother subscribes to /cmd_vel and outputs /cmd_vel_smoothed.
+    # The Gazebo diff_drive plugin and the bridge only listen on /cmd_vel.
+    # This relay merges /cmd_vel_smoothed back into /cmd_vel so that:
+    #   - teleop (publishes directly to /cmd_vel) drives the robot
+    #   - Nav2 goals (output on /cmd_vel_smoothed) also drive the robot
+    cmd_vel_relay = Node(
+        package='topic_tools',
+        executable='relay',
+        name='cmd_vel_smoother_relay',
+        arguments=['/cmd_vel_smoothed', '/cmd_vel'],
         parameters=[{'use_sim_time': True}],
         output='screen',
     )
@@ -279,6 +294,7 @@ def generate_launch_description():
         bridge,
         tf_static_bridge,
         wheel_relay,
+        cmd_vel_relay,
         map_to_odom,
         spawn_robot,       # t=8s  — robot spawned, gz_ros2_control plugin starts
         spawn_jsb,         # t=13s — joint_state_broadcaster
