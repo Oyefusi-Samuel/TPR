@@ -1,93 +1,90 @@
 """
-mapping.launch.py  -  Jackal AR4: SLAM Toolbox mapping session
+mapping.launch.py  -  SLAM Toolbox mapping session for Jackal AR4
 
-Usage:
-  ros2 launch jackal_ar4_navigation mapping.launch.py
-  ros2 launch jackal_ar4_navigation mapping.launch.py world:=tpr
+WORKFLOW:
+  Terminal 1 (sim, already running):
+    ros2 launch jackal_ar4_description gazebo.launch.py world:=tpr
 
-This launches:
-  1. The full Gazebo simulation (gazebo.launch.py)
-  2. SLAM Toolbox in online async mode — builds a map from /lidar/scan
+  Terminal 2 (this launch):
+    ros2 launch jackal_ar4_navigation mapping.launch.py
 
-While it runs, drive the robot with teleop to map the environment:
-  ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args -r cmd_vel:=/cmd_vel
+  Terminal 3 (teleop):
+    ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args -r cmd_vel:=/cmd_vel
 
-When you are satisfied with the map, SAVE IT:
-  ros2 run nav2_map_server map_saver_cli -f ~/jackal_ar4_ws/src/jackal_ar4_navigation/maps/tpr_map
+  Drive the robot around the TPR world to build the map.
+  When done, save the map:
+    ros2 run nav2_map_server map_saver_cli -f ~/tpr/jackal_ar4_ws/src/jackal_ar4_navigation/maps/tpr_map
 
-Then use it for A* navigation:
-  ros2 launch jackal_ar4_navigation astar_navigation.launch.py map:=<full_path>/tpr_map.yaml
+  Then rebuild:
+    cd ~/tpr/jackal_ar4_ws && colcon build --symlink-install && source install/setup.bash
 """
 
 import os
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, TimerAction
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
+from launch_ros.actions import Node
 
 
 def generate_launch_description():
 
-    pkg_description  = get_package_share_directory('jackal_ar4_description')
     pkg_navigation   = get_package_share_directory('jackal_ar4_navigation')
     pkg_slam_toolbox = get_package_share_directory('slam_toolbox')
 
     slam_params_file = os.path.join(
         pkg_navigation, 'config', 'slam_toolbox_mapping_params.yaml'
     )
+    rviz_config_file = os.path.join(
+        pkg_navigation, 'config', 'mapping.rviz'
+    )
+
+    # slam_toolbox's own online_async_launch.py handles all lifecycle setup
+    slam_toolbox_launch_path = os.path.join(
+        pkg_slam_toolbox, 'launch', 'online_async_launch.py'
+    )
 
     # ── Args ──────────────────────────────────────────────────────────────
-    world_arg = DeclareLaunchArgument(
-        'world',
-        default_value='tpr',
-        description='Gazebo world name (no .sdf). '
-                    'Available: empty, empty_room, room_with_walls, '
-                    'room_with_walls_star, turtlebot_arena, tpr',
-    )
     slam_params_arg = DeclareLaunchArgument(
         'slam_params_file',
         default_value=slam_params_file,
         description='Full path to SLAM Toolbox parameter file',
     )
-
-    world       = LaunchConfiguration('world')
     slam_params = LaunchConfiguration('slam_params_file')
 
-    # ── 1. Full simulation (Gazebo + controllers + Nav2 + RViz) ──────────
-    # launch_rviz=true so we see the map being built live in RViz.
-    # Nav2 is included by gazebo.launch.py; it is useful to have it running
-    # so the costmaps are visible, but navigation goals are not needed here.
-    gazebo_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            os.path.join(pkg_description, 'launch', 'gazebo.launch.py')
-        ),
+    # ── SLAM Toolbox via its own launch ───────────────────────────────────
+    # Using IncludeLaunchDescription on slam_toolbox's online_async_launch.py
+    # is the correct pattern (same as mobo_bot). It internally handles the
+    # node arguments including use_lifecycle_manager correctly.
+    #
+    # Our slam_toolbox_mapping_params.yaml also sets:
+    #   use_lifecycle_manager: false  ← ensures node self-configures
+    #   scan_topic: /lidar/scan       ← our bridged LiDAR topic
+    slam_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(slam_toolbox_launch_path),
         launch_arguments={
-            'world': world,
-            'launch_rviz': 'true',
+            'use_sim_time': 'true',
+            'slam_params_file': slam_params,
         }.items(),
     )
 
-    # ── 2. SLAM Toolbox — online async mapping ────────────────────────────
-    # Delayed 20 s to ensure Gazebo, RSP, controllers and bridges are all
-    # fully up before SLAM starts subscribing to /lidar/scan and /tf.
-    slam_launch = TimerAction(
-        period=20.0,
-        actions=[IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(
-                os.path.join(pkg_slam_toolbox, 'launch', 'online_async_launch.py')
-            ),
-            launch_arguments={
-                'use_sim_time': 'true',
-                'slam_params_file': slam_params,
-            }.items(),
-        )],
+    # ── RViz ──────────────────────────────────────────────────────────────
+    # Fixed frame = map. Map display uses Transient Local QoS to match
+    # slam_toolbox's latched /map topic — this is why the map was not visible
+    # before (Volatile QoS means RViz misses the latched message).
+    rviz_node = Node(
+        package='rviz2',
+        executable='rviz2',
+        name='rviz2_mapping',
+        arguments=['-d', rviz_config_file],
+        parameters=[{'use_sim_time': True}],
+        output='screen',
     )
 
     return LaunchDescription([
-        world_arg,
         slam_params_arg,
-        gazebo_launch,
         slam_launch,
+        rviz_node,
     ])
