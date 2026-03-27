@@ -19,5 +19,10 @@ install(
   PROGRAMS scripts/ground_truth_odom.py
   DESTINATION lib/${PROJECT_NAME}
 )
+install(PROGRAMS
+  scripts/ground_truth_odom.py
+  scripts/twist_unstamper.py
+  DESTINATION lib/${PROJECT_NAME}
+)
 
 ament_package()

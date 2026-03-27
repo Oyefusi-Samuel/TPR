@@ -143,6 +143,8 @@ def generate_launch_description():
             '/cmd_vel@geometry_msgs/msg/Twist]gz.msgs.Twist',
             '/odom@nav_msgs/msg/Odometry[gz.msgs.Odometry',
             '/wheel_joint_states@sensor_msgs/msg/JointState[gz.msgs.Model',
+            # LiDAR scan — Gazebo→ROS, topic name matches gz_frame_id in URDF
+            '/lidar/scan@sensor_msgs/msg/LaserScan[gz.msgs.LaserScan',
         ],
         parameters=[{'use_sim_time': True}],
         output='screen',
