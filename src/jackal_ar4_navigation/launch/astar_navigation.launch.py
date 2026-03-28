@@ -29,7 +29,10 @@ def generate_launch_description():
     # ── Paths ──────────────────────────────────────────────────────────────
     default_map  = os.path.join(pkg_navigation, 'maps', 'tpr_map.yaml')
     astar_params = os.path.join(pkg_astar, 'config', 'nav2_bringup_params.yaml')
-    astar_rviz   = os.path.join(pkg_astar, 'config', 'amcl.rviz')
+    # Use our own navigation.rviz (in jackal_ar4_navigation/config/)
+    # which fixes the GLSL map shader bug by using Color Scheme: raw for /map
+    # instead of the default "map" scheme used in a_star's amcl.rviz
+    astar_rviz   = os.path.join(pkg_navigation, 'config', 'navigation.rviz')
 
     # ── Args ───────────────────────────────────────────────────────────────
     map_arg = DeclareLaunchArgument(
