@@ -16,7 +16,7 @@ import os
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
+from launch.actions import DeclareLaunchArgument, TimerAction
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
@@ -93,16 +93,24 @@ def generate_launch_description():
     )
 
     # lifecycle_manager: activates map_server → amcl → costmap in sequence
-    # NO use_sim_time here — lifecycle_manager bond checks run on wall clock
-    lifecycle_manager_node = Node(
-        package='nav2_lifecycle_manager',
-        executable='lifecycle_manager',
-        name='lifecycle_manager_astar',
-        output='screen',
-        parameters=[
-            {'autostart': True, 'bond_timeout': 0.0},
-            {'node_names': lifecycle_nodes},
-        ],
+    # NO use_sim_time here — lifecycle_manager bond checks run on wall clock.
+    # Delayed 3s so map_server/amcl/costmap nodes are fully initialized
+    # before the lifecycle_manager sends the configure transition.
+    # Without the delay: lifecycle_manager fires configure at the same instant
+    # map_server is created → configure call arrives before map_server's service
+    # is ready → "Failed to change state" race condition.
+    lifecycle_manager_node = TimerAction(
+        period=3.0,
+        actions=[Node(
+            package='nav2_lifecycle_manager',
+            executable='lifecycle_manager',
+            name='lifecycle_manager_astar',
+            output='screen',
+            parameters=[
+                {'autostart': True, 'bond_timeout': 0.0},
+                {'node_names': lifecycle_nodes},
+            ],
+        )],
     )
 
     # ── A* Planner ─────────────────────────────────────────────────────────

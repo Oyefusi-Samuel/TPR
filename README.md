@@ -1,8 +1,6 @@
 # Jackal AR4 Simulation Workspace
 
-A ROS 2 Jazzy simulation of the **Clearpath Jackal J100** mobile robot equipped with an **AR4 6-DOF robotic arm** and gripper, running in **Gazebo Harmonic** with full **MoveIt 2** and **Nav2** integration.
-
-![Robot Preview](docs/preview.png)
+A ROS 2 Jazzy simulation of the **Clearpath Jackal J100** mobile robot equipped with an **AR4 6-DOF robotic arm**, a **360° 2D LiDAR**, and a custom **A\* Smooth Planner** for autonomous navigation. Runs in **Gazebo Harmonic** with **SLAM Toolbox** mapping, **AMCL** localisation, **MoveIt 2** arm control, and **Nav2**.
 
 ---
 
@@ -12,20 +10,9 @@ A ROS 2 Jazzy simulation of the **Clearpath Jackal J100** mobile robot equipped 
 - [System Requirements](#system-requirements)
 - [Repository Structure](#repository-structure)
 - [Installation](#installation)
-  - [1. Install ROS 2 Jazzy](#1-install-ros-2-jazzy)
-  - [2. Install Gazebo Harmonic](#2-install-gazebo-harmonic)
-  - [3. Clone the Repository](#3-clone-the-repository)
-  - [4. Install Dependencies with rosdep](#4-install-dependencies-with-rosdep)
-  - [5. Build the Workspace](#5-build-the-workspace)
+- [Quick Start](#quick-start)
 - [Running the Simulation](#running-the-simulation)
-  - [RViz Only (No Gazebo)](#rviz-only-no-gazebo)
-  - [Full Gazebo Simulation](#full-gazebo-simulation)
-  - [Choosing a World](#choosing-a-world)
 - [Available Worlds](#available-worlds)
-- [Verifying Everything Works](#verifying-everything-works)
-- [Sending Goals](#sending-goals)
-  - [Navigation Goal (Nav2)](#navigation-goal-nav2)
-  - [Arm Goal (MoveIt)](#arm-goal-moveit)
 - [Architecture Overview](#architecture-overview)
 - [Package Breakdown](#package-breakdown)
 - [Troubleshooting](#troubleshooting)
@@ -36,13 +23,19 @@ A ROS 2 Jazzy simulation of the **Clearpath Jackal J100** mobile robot equipped 
 
 ## Overview
 
-This workspace provides a full simulation stack for a Jackal + AR4 mobile manipulator:
+This workspace provides a complete mobile manipulation and autonomous navigation simulation:
 
-- **Gazebo Harmonic** — physics simulation with differential drive, collision, and sensors
-- **MoveIt 2** — motion planning and arm trajectory execution via OMPL
-- **Nav2** — autonomous navigation with global/local costmaps and MPPI controller
-- **ros2_control** — hardware abstraction for arm and gripper joints
-- **RViz2** — visualisation with full MoveIt motion planning panel
+| Component | Technology |
+|---|---|
+| Physics simulation | Gazebo Harmonic |
+| Mobile base | Clearpath Jackal J100 (differential drive) |
+| Manipulator | Annin Robotics AR4 6-DOF arm + gripper |
+| Sensor | 360° GPU LiDAR → `/lidar/scan` |
+| Mapping | SLAM Toolbox (online async) |
+| Localisation | AMCL |
+| Navigation | A\* Smooth Planner + Pure Pursuit controller |
+| Arm planning | MoveIt 2 + OMPL |
+| Hardware interface | ros2_control (gz_ros2_control + mock_components) |
 
 ---
 
@@ -54,390 +47,326 @@ This workspace provides a full simulation stack for a Jackal + AR4 mobile manipu
 | ROS 2 | Jazzy |
 | Gazebo | Harmonic |
 | Python | 3.12+ |
-| RAM | 8 GB minimum (16 GB recommended) |
-| GPU | Optional but recommended for Gazebo rendering |
+| RAM | 8 GB minimum, 16 GB recommended |
+| GPU | Optional but recommended |
 
 ---
 
 ## Repository Structure
 
 ```
-jackal_ar4_ws/
-├── src/
-│   ├── ar4/                          # AR4 arm URDF, meshes, MoveIt config
-│   │   ├── ar4_description/
-│   │   └── ar4_moveit_config/
-│   ├── clearpath_common/             # Clearpath platform description (J100 base)
-│   │   ├── clearpath_platform_description/
-│   │   └── clearpath_control/
-│   ├── jackal_ar4_description/       # Combined robot URDF, launch files
-│   │   ├── urdf/
-│   │   │   ├── jackal_ar4.urdf.xacro
-│   │   │   ├── jackal_ar4.ros2_control.xacro
-│   │   │   └── ar4_arm.urdf.xacro
-│   │   └── launch/
-│   │       ├── jackal_ar4.launch     # RViz-only launch (no Gazebo)
-│   │       └── gazebo.launch.py      # Full Gazebo simulation launch
-│   ├── jackal_ar4_moveit_config/     # MoveIt SRDF, kinematics, controllers
-│   │   └── config/
-│   │       ├── jackal_ar4.srdf
-│   │       ├── ros2_controllers.yaml
-│   │       ├── moveit_controllers.yaml
-│   │       └── kinematics.yaml
-│   ├── jackal_ar4_navigation/        # Nav2 config, maps, navigation launch
-│   │   ├── config/nav2_params.yaml
-│   │   ├── maps/
-│   │   └── launch/navigation.launch.py
-│   ├── jackal_ar4_goals/             # Python scripts for sending arm/nav goals
-│   └── worlds/                       # Gazebo SDF world files
-│       ├── empty.sdf
-│       ├── empty_room.sdf
-│       ├── room_with_walls.sdf
-│       ├── room_with_walls_star.sdf
-│       ├── turtlebot_arena.sdf
-│       └── tpr.sdf
-├── Dockerfile
-├── docker-compose.yml
-└── README.md
+jackal_ar4_ws/src/
+├── jackal_ar4_description/        ← Main robot package
+│   ├── urdf/
+│   │   ├── jackal_ar4.urdf.xacro          # Robot URDF + LiDAR + Gazebo plugins
+│   │   ├── jackal_ar4.ros2_control.xacro  # Hardware interface config
+│   │   └── ar4_arm.urdf.xacro             # AR4 arm macro
+│   └── launch/
+│       ├── gazebo.launch.py      # Full simulation (Gazebo + controllers + Nav2 + RViz)
+│       └── jackal_ar4.launch     # RViz-only (no Gazebo, for arm testing)
+│
+├── jackal_ar4_navigation/         ← Navigation stack
+│   ├── config/
+│   │   ├── nav2_params.yaml               # Nav2 costmap + controller params
+│   │   ├── slam_toolbox_mapping_params.yaml
+│   │   ├── mapping.rviz                   # RViz for SLAM mapping
+│   │   └── navigation.rviz                # RViz for A* navigation
+│   ├── maps/
+│   │   ├── tpr_map.yaml                   # Saved map (metadata)
+│   │   └── tpr_map.pgm                    # Saved map (image)
+│   ├── launch/
+│   │   ├── mapping.launch.py              # SLAM-only launch
+│   │   └── astar_navigation.launch.py     # A* navigation launch
+│   └── scripts/
+│       └── twist_unstamper.py             # Converts TwistStamped → Twist
+│
+├── jackal_ar4_moveit_config/      ← MoveIt 2 configuration
+├── jackal_ar4_worlds/             ← Gazebo SDF worlds
+├── jackal_ar4_goals/              ← Goal-sending scripts
+├── a_star_smooth_planner/         ← A* planner + smoother + pure pursuit
+├── ar4/                           ← AR4 arm description + MoveIt
+└── clearpath_common/              ← Jackal J100 base description
 ```
 
 ---
 
 ## Installation
 
-### 1. Install ROS 2 Jazzy
+### 1. Install ROS 2 Jazzy + Gazebo Harmonic
 
-Follow the official installation guide:
 ```bash
-# Set locale
+# ROS 2 Jazzy
 sudo apt update && sudo apt install -y locales
 sudo locale-gen en_US en_US.UTF-8
 sudo update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
-
-# Add ROS 2 apt repository
 sudo apt install -y software-properties-common curl
 sudo curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key \
   -o /usr/share/keyrings/ros-archive-keyring.gpg
 echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] \
   http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" \
   | sudo tee /etc/apt/sources.list.d/ros2.list > /dev/null
+sudo apt update && sudo apt install -y ros-jazzy-desktop
 
-# Install ROS 2 Jazzy
-sudo apt update
-sudo apt install -y ros-jazzy-desktop
-```
-
-### 2. Install Gazebo Harmonic
-
-```bash
+# Gazebo + navigation packages
 sudo apt install -y ros-jazzy-ros-gz
+sudo apt install -y ros-jazzy-slam-toolbox
+sudo apt install -y ros-jazzy-nav2-bringup
+sudo apt install -y ros-jazzy-topic-tools
+sudo apt install -y ros-jazzy-teleop-twist-keyboard
 ```
 
-### 3. Clone the Repository
+### 2. Clone and Build
 
 ```bash
-mkdir -p ~/jackal_ar4_ws/src
-cd ~/jackal_ar4_ws
-git clone https://github.com/Oyefusi-Samuel/TPR.git src
-```
+mkdir -p ~/tpr/jackal_ar4_ws/src
+cd ~/tpr/jackal_ar4_ws
+git clone https://github.com/Oyefusi-Samuel/TPR.git src/
 
-### 4. Install Dependencies with rosdep
-
-This is the single most important step — it installs all ROS and system dependencies automatically by scanning every `package.xml` in the workspace.
-
-```bash
-# Initialise rosdep (first time only)
-sudo rosdep init
-rosdep update
-
-# Source ROS 2
 source /opt/ros/jazzy/setup.bash
-
-# Install all dependencies
-cd ~/jackal_ar4_ws
+sudo rosdep init      # first time only
+rosdep update
 rosdep install --from-paths src --ignore-src -r -y
-```
 
-> **Note:** `rosdep` handles everything including `joint_trajectory_controller`, `ros2_control`, `moveit`, `nav2`, `topic_tools`, and all Gazebo bridge packages. You should not need to install anything manually.
-
-### 5. Build the Workspace
-
-```bash
-cd ~/jackal_ar4_ws
 colcon build --symlink-install
 source install/setup.bash
 ```
 
-> **Tip:** Add `source ~/jackal_ar4_ws/install/setup.bash` to your `~/.bashrc` so you don't need to source it every terminal session.
+Add to `~/.bashrc`:
+```bash
+echo "source ~/tpr/jackal_ar4_ws/install/setup.bash" >> ~/.bashrc
+```
+
+---
+
+## Quick Start
 
 ```bash
-echo "source ~/jackal_ar4_ws/install/setup.bash" >> ~/.bashrc
+# T1 — Launch simulation
+ros2 launch jackal_ar4_description gazebo.launch.py world:=tpr
+
+# T2 — Drive with keyboard
+ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args -r cmd_vel:=/cmd_vel
+
+# T3 — Map the world (while sim is running)
+ros2 launch jackal_ar4_navigation mapping.launch.py
+# Drive around to build the map, then save:
+ros2 run nav2_map_server map_saver_cli -f ~/tpr/jackal_ar4_ws/src/jackal_ar4_navigation/maps/tpr_map
+cd ~/tpr/jackal_ar4_ws && colcon build --symlink-install && source install/setup.bash
+
+# T3 — Navigate with A* (after mapping, with sim running)
+ros2 launch jackal_ar4_navigation astar_navigation.launch.py
+# Use '2D Pose Estimate' then '2D Goal Pose' in RViz
 ```
 
 ---
 
 ## Running the Simulation
 
-### RViz Only (No Gazebo)
-
-Use this to verify the robot model, MoveIt planning, and Nav2 are configured correctly before launching Gazebo. This uses `mock_components` hardware — joints respond instantly with no physics.
-
-```bash
-ros2 launch jackal_ar4_description jackal_ar4.launch
-```
-
-### Full Gazebo Simulation
-
-```bash
-ros2 launch jackal_ar4_description gazebo.launch.py
-```
-
-This launches Gazebo Harmonic, spawns the robot, brings up all controllers, Nav2, MoveIt, and RViz in one command. Wait approximately 7–10 seconds for all nodes to initialise.
-
-### Choosing a World
-
-Pass the world name (without `.sdf`) as an argument:
+### Step 1 — Full Gazebo Simulation
 
 ```bash
 ros2 launch jackal_ar4_description gazebo.launch.py world:=tpr
-ros2 launch jackal_ar4_description gazebo.launch.py world:=room_with_walls
-ros2 launch jackal_ar4_description gazebo.launch.py world:=turtlebot_arena
 ```
 
-To also suppress RViz (headless mode):
+Wait ~15–20 s for all nodes to start. Starts: Gazebo, robot, LiDAR, bridges, arm controllers, Nav2, MoveIt, RViz.
 
 ```bash
+# Other world options
+ros2 launch jackal_ar4_description gazebo.launch.py world:=room_with_walls
 ros2 launch jackal_ar4_description gazebo.launch.py world:=tpr launch_rviz:=false
 ```
+
+### Step 2 — Teleop
+
+```bash
+ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args -r cmd_vel:=/cmd_vel
+```
+
+Press `x` several times to reduce speed before driving. Use `i`/`,` to move forward/backward, `j`/`l` to turn.
+
+### Step 3 — SLAM Mapping
+
+Run **after** the simulation is fully started:
+
+```bash
+ros2 launch jackal_ar4_navigation mapping.launch.py
+```
+
+RViz opens showing the map being built live. Drive around to cover the entire environment. When done:
+
+```bash
+# Save the map
+ros2 run nav2_map_server map_saver_cli \
+  -f ~/tpr/jackal_ar4_ws/src/jackal_ar4_navigation/maps/tpr_map
+
+# Verify the saved yaml has a relative image path
+cat ~/tpr/jackal_ar4_ws/src/jackal_ar4_navigation/maps/tpr_map.yaml
+# Should say:  image: tpr_map.pgm   (NOT an absolute path)
+
+# Rebuild to install the map
+cd ~/tpr/jackal_ar4_ws && colcon build --symlink-install && source install/setup.bash
+```
+
+> **Critical:** If the saved map looks completely blank (all white with no walls), SLAM didn't capture wall data. This happens when the robot barely moves or the LiDAR data wasn't flowing yet. Remap: kill the mapping launch, relaunch it after the sim is fully up, drive slowly around all walls, then save again.
+
+### Step 4 — A\* Navigation
+
+Run **after** mapping is done and the simulation is running:
+
+```bash
+ros2 launch jackal_ar4_navigation astar_navigation.launch.py
+```
+
+RViz opens with: saved map (white=free, black=walls), LiDAR scan (red), AMCL particles, costmap, A\* path (orange), smoothed path (green).
+
+**To navigate:**
+1. Click **2D Pose Estimate** → click on the map where the robot actually is → drag to set heading
+2. Wait for AMCL particles to converge around the robot (a few seconds)
+3. Click **2D Goal Pose** → click anywhere on white (free) space
+4. The robot plans and drives autonomously
+
+### Step 5 — MoveIt Arm Control
+
+In the RViz window launched by `gazebo.launch.py`:
+1. Open the **Motion Planning** panel
+2. Drag the interactive end-effector marker to a target pose
+3. Click **Plan** then **Execute**
+
+The arm moves in both RViz and Gazebo simultaneously.
 
 ---
 
 ## Available Worlds
 
-| World Name | Description |
+| World | Description |
 |---|---|
-| `empty` | Flat infinite ground plane (default) |
+| `empty` | Flat ground plane |
 | `empty_room` | Enclosed empty room |
-| `room_with_walls` | Room with wall obstacles |
-| `room_with_walls_star` | Star-shaped room layout |
-| `turtlebot_arena` | Standard TurtleBot benchmark arena |
-| `tpr` | Custom TPR project environment |
-
-To add your own world, drop the `.sdf` file into `src/worlds/` and rebuild.
-
----
-
-## Verifying Everything Works
-
-After launching, open a second terminal and run:
-
-```bash
-source ~/jackal_ar4_ws/install/setup.bash
-
-# Check all three controllers are active
-ros2 control list_controllers
-```
-
-Expected output:
-```
-joint_state_broadcaster  active
-arm_controller           active
-ar_gripper_controller    active
-```
-
-```bash
-# Confirm joint states are being published
-ros2 topic echo /joint_states --once
-
-# Confirm Gazebo odometry is flowing
-ros2 topic echo /odom --once
-
-# Confirm TF tree is complete
-ros2 run tf2_tools view_frames
-```
-
----
-
-## Sending Goals
-
-### Navigation Goal (Nav2)
-
-In RViz, use the **2D Goal Pose** button in the toolbar, then click anywhere on the map. The Jackal will plan and drive to that position using the MPPI controller.
-
-Alternatively from the terminal:
-
-```bash
-ros2 run jackal_ar4_goals send_nav_goal
-```
-
-### Arm Goal (MoveIt)
-
-In RViz, use the **Motion Planning** panel:
-1. Drag the interactive marker to a target pose
-2. Click **Plan**
-3. Click **Execute**
-
-The arm will move in both RViz and Gazebo simultaneously.
-
-Alternatively from the terminal:
-
-```bash
-ros2 run jackal_ar4_goals send_arm_goal
-```
+| `room_with_walls` | Room with obstacles |
+| `room_with_walls_star` | Star-shaped room |
+| `turtlebot_arena` | Standard benchmark arena |
+| `tpr` | Custom TPR environment |
 
 ---
 
 ## Architecture Overview
 
 ```
-                    ┌─────────────────────────────────────────┐
-                    │              Gazebo Harmonic             │
-                    │  ┌──────────────┐  ┌──────────────────┐ │
-                    │  │  diff_drive  │  │ JointStatePublish│ │
-                    │  │   plugin     │  │ er (wheels)      │ │
-                    │  └──────┬───────┘  └────────┬─────────┘ │
-                    └─────────┼────────────────────┼───────────┘
-                              │ /tf (odom→base)    │ /wheel_joint_states
-                    ┌─────────▼────────────────────▼───────────┐
-                    │           ros_gz_bridge                   │
-                    └─────────┬────────────────────┬───────────┘
-                              │                    │ topic_tools relay
-                    ┌─────────▼──────────┐  ┌──────▼──────────────┐
-                    │  robot_state_pub   │  │    /joint_states     │
-                    │  (URDF → TF tree)  │  │  (arm + wheels)      │
-                    └─────────┬──────────┘  └──────┬──────────────┘
-                              │                    │
-              ┌───────────────▼──────┐  ┌──────────▼──────────────┐
-              │       Nav2           │  │   ros2_control_node      │
-              │  (navigation stack)  │  │   arm_controller         │
-              │  /cmd_vel → Gazebo   │  │   ar_gripper_controller  │
-              └──────────────────────┘  └──────────┬──────────────┘
-                                                   │
-                                        ┌──────────▼──────────────┐
-                                        │       MoveIt 2           │
-                                        │   move_group + OMPL      │
-                                        └─────────────────────────┘
+Gazebo Harmonic
+  ├── diff_drive plugin     → /tf (odom→base_link), /odom
+  ├── JointStatePublisher   → /wheel_joint_states
+  └── gpu_lidar sensor      → /lidar/scan
+         │
+         ▼
+  ros_gz_bridge             → ROS topics: /clock /tf /cmd_vel /odom /lidar/scan
+         │
+         ├── topic_tools relay  (/wheel_joint_states → /joint_states)
+         ├── topic_tools relay  (/cmd_vel_smoothed → /cmd_vel)
+         │
+         ├── robot_state_publisher  → TF tree (URDF joints)
+         │
+         ├── ros2_control_node
+         │     └── arm_controller + ar_gripper_controller
+         │           └── MoveIt 2 move_group
+         │
+         └── Nav2 stack
+               ├── velocity_smoother  (/cmd_vel → /cmd_vel_smoothed)
+               └── controller_server  → /cmd_vel
+
+Navigation (A* mode):
+  /lidar/scan ──► SLAM Toolbox ──► tpr_map.yaml (offline)
+  /lidar/scan ──► AMCL ──────────► /amcl_pose
+  /lidar/scan ──► Costmap ────────► /costmap
+  /goal_pose  ──► A* Planner ─────► /a_star/path
+                  ↓
+               A* Smoother ──────► /a_star/path/smooth
+                  ↓
+               Pure Pursuit ──────► /cmd_vel_stamped
+                  ↓
+               twist_unstamper ───► /cmd_vel ──► Gazebo diff_drive
 ```
 
 ---
 
 ## Package Breakdown
 
-| Package | Purpose |
+| Package | Role |
 |---|---|
-| `jackal_ar4_description` | Combined robot URDF and all launch files |
-| `jackal_ar4_moveit_config` | MoveIt SRDF, OMPL config, controller mappings |
-| `jackal_ar4_navigation` | Nav2 parameters, map, navigation launch |
-| `jackal_ar4_goals` | Python scripts to send arm and navigation goals |
-| `jackal_ar4_worlds` | Gazebo SDF world files |
-| `ar4_description` | AR4 arm URDF macros and STL meshes |
-| `clearpath_platform_description` | Jackal J100 URDF macros and meshes |
+| `jackal_ar4_description` | Robot URDF, LiDAR, Gazebo plugins, all launch files |
+| `jackal_ar4_navigation` | Nav2 params, SLAM params, mapping/navigation launches, RViz configs |
+| `jackal_ar4_moveit_config` | MoveIt SRDF, kinematics, OMPL config, controller mappings |
+| `jackal_ar4_goals` | Python scripts for sending arm and nav goals programmatically |
+| `jackal_ar4_worlds` | Gazebo SDF worlds (tpr, room_with_walls, etc.) |
+| `a_star_smooth_planner` | A\* planner (Python), path smoother (C++), pure pursuit (C++) |
+| `ar4_description` | AR4 arm URDF macros + STL meshes |
+| `clearpath_platform_description` | Jackal J100 base URDF macros + meshes |
 
 ---
 
 ## Troubleshooting
 
-**Controllers fail to load (`joint_trajectory_controller not found`)**
+### Simulation
+
+| Problem | Fix |
+|---|---|
+| Controllers not active | Relaunch — spawners start at t=10–11s and may race on slow machines |
+| Teleop not driving robot | Verify with `ros2 topic echo /cmd_vel --once`. The cmd_vel_relay must be running |
+| Robot bouncing in RViz | `map_to_odom` static publisher must NOT have `use_sim_time=True` — already fixed |
+| Meshes missing in Gazebo | Only use `gazebo.launch.py` — it sets `GZ_SIM_RESOURCE_PATH` automatically |
+
+### LiDAR
+
+| Problem | Fix |
+|---|---|
+| `/lidar/scan` not publishing | Check bridge: `ros2 topic hz /lidar/scan` |
+| No LiDAR in RViz | Add → LaserScan → `/lidar/scan`, Fixed Frame = `lidar` or `map` |
+
+### Mapping
+
+| Problem | Fix |
+|---|---|
+| SLAM exits immediately | `use_lifecycle_manager: false` must be in `slam_toolbox_mapping_params.yaml` |
+| Map blank after saving | Remap — the robot didn't move enough or LiDAR wasn't flowing. Drive all walls |
+| Map not visible in RViz | Map display must use `Durability Policy: Transient Local` — `mapping.rviz` already has this |
+
+### A\* Navigation
+
+| Problem | Fix |
+|---|---|
+| `Failed to change state for node: map_server` | Race condition — lifecycle_manager now has 3s delay. If still fails, increase delay |
+| `No map received!` | Either map is blank (remap) or obstacle_layer scan topic is wrong (`/lidar/scan` not `/scan`) |
+| Map shows with no walls | Map was saved blank — remap the TPR world |
+| AMCL won't converge | Use 2D Pose Estimate to give the robot its initial position on the map |
+| GLSL shader error in RViz | Use `Binary representation: true` + `Color Scheme: map` — already set in `navigation.rviz` |
+
+### Build
+
 ```bash
-sudo apt install -y ros-jazzy-joint-trajectory-controller
-```
-
-**`ros2 control` command not found**
-```bash
-sudo apt install -y ros-jazzy-ros2controlcli
-```
-
-**Arm moves in RViz but not in Gazebo**
-
-Ensure all three controllers are active:
-```bash
-ros2 control list_controllers
-```
-If `arm_controller` or `ar_gripper_controller` is missing, the spawner likely timed out. Relaunch.
-
-**Robot bouncing in RViz**
-
-This is a TF timestamp conflict. Ensure you are using the latest `gazebo.launch.py` — the `map_to_odom` static publisher must **not** have `use_sim_time=True`.
-
-**`map` frame not found / Nav2 costmap timeout**
-
-The `map_to_odom` static publisher must be running. Check:
-```bash
-ros2 node list | grep static_transform
-```
-
-**Meshes missing in Gazebo (grey boxes)**
-
-The `GZ_SIM_RESOURCE_PATH` is not set correctly. The launch file sets this automatically — ensure you are using `gazebo.launch.py` and not launching `gz sim` manually.
-
-**`rosdep install` fails on a package**
-
-```bash
-# Update rosdep database first
-rosdep update
+# Dependencies missing
+sudo apt install -y ros-jazzy-slam-toolbox ros-jazzy-nav2-bringup ros-jazzy-topic-tools
 rosdep install --from-paths src --ignore-src -r -y
+
+# Always rebuild after changing config files
+cd ~/tpr/jackal_ar4_ws && colcon build --symlink-install && source install/setup.bash
 ```
-
-**Build fails with symlink install error on `jackal_ar4_worlds`**
-
-Ensure your world `.sdf` files are directly inside `src/worlds/` with no subdirectory, and that `CMakeLists.txt` is also present in `src/worlds/`.
 
 ---
 
 ## Contributing
 
-Contributions are welcome! Please follow these steps:
-
-### Getting Started
-
-1. Fork the repository on GitHub
-2. Create a feature branch:
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
-3. Make your changes
-4. Test your changes by running the full simulation:
-   ```bash
-   colcon build --symlink-install
-   source install/setup.bash
-   ros2 launch jackal_ar4_description gazebo.launch.py
-   ```
-5. Commit with a clear message:
-   ```bash
-   git commit -m "feat: add description of what you changed"
-   ```
-6. Push and open a Pull Request against the `main` branch
-
-### Contribution Guidelines
-
-- **URDF/XACRO changes** — always verify with `check_urdf` and test in both `jackal_ar4.launch` (RViz) and `gazebo.launch.py` before submitting
-- **New worlds** — drop `.sdf` files into `src/worlds/` and add an entry to the Available Worlds table in this README
-- **New controllers** — add to `ros2_controllers.yaml` and `moveit_controllers.yaml`, and update the spawner in `gazebo.launch.py`
-- **Navigation tuning** — update `nav2_params.yaml` and document what was changed and why
-- **Python scripts** — follow PEP 8, add a docstring, and place them in `jackal_ar4_goals/`
-- **Dependencies** — if you add a new ROS package dependency, add it to the appropriate `package.xml`. Do not add manual `apt install` instructions — use `rosdep` so it stays reproducible
-
-### Code Style
-
-- Python: PEP 8
-- C++: follow `ament_clang_format` (`.clang-format` in `src/ar4/`)
-- URDF/XACRO: 2-space indentation, descriptive link and joint names
-- Commit messages: use [Conventional Commits](https://www.conventionalcommits.org/) format (`feat:`, `fix:`, `docs:`, `refactor:`)
-
-### Reporting Issues
-
-Open a GitHub Issue with:
-- Your Ubuntu and ROS 2 version
-- The full launch command you ran
-- The relevant terminal error output
-- Output of `ros2 control list_controllers` and `ros2 run tf2_tools view_frames` if it's a TF or controller issue
+1. Fork → branch → change → test → PR
+2. Test with: `ros2 launch jackal_ar4_description gazebo.launch.py`
+3. Commit style: [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`)
+4. New worlds → add `.sdf` to `jackal_ar4_worlds/worlds/`
+5. New dependencies → add to `package.xml`, never raw `apt install`
 
 ---
 
 ## License
 
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+MIT License — see [LICENSE](LICENSE).
 
-Third-party packages included in this workspace retain their original licenses:
-- `ar4_description` / `ar4_moveit_config` — see `src/ar4/ar4_description/LICENSE`
-- `clearpath_common` — see `src/clearpath_common/LICENSE`
+Third-party components retain their original licenses:
+- `ar4_description` / `ar4_moveit_config` → `src/ar4/ar4_description/LICENSE`
+- `clearpath_common` → `src/clearpath_common/LICENSE`
+- `a_star_smooth_planner` → `src/a_star_smooth_planner/LICENSE`

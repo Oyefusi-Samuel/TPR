@@ -8,7 +8,7 @@ Panels:
         - /Map1
         - /Map1/Topic1
       Splitter Ratio: 0.5
-    Tree Height: 700
+    Tree Height: 389
   - Class: rviz_common/Tool Properties
     Expanded: ~
     Name: Tool Properties
@@ -22,7 +22,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: ""
+    SyncSource: LaserScan
 Visualization Manager:
   Class: ""
   Displays:
@@ -44,22 +44,7 @@ Visualization Manager:
       Plane Cell Count: 10
       Reference Frame: <Fixed Frame>
       Value: true
-
-    # ── Saved TPR Map ─────────────────────────────────────────────────────
-    # Color Scheme: map  +  Binary representation: true  =  correct B&W look
-    # WITHOUT the GLSL indexed texture shader that crashes on this OpenGL driver.
-    #
-    # The "map" scheme normally uses an indexed 8-bit texture (GLSL bug).
-    # Enabling Binary representation switches to a simple 2-colour render path
-    # that does NOT use the indexed texture shader → no GLSL error → map visible.
-    #
-    # Binary threshold: 65  (standard occupancy threshold used by nav2_map_server)
-    #   cells with occupancy < 65  → FREE  → rendered WHITE
-    #   cells with occupancy >= 65 → OCCUPIED → rendered BLACK
-    # This gives the correct standard black-walls-on-white-background look.
-    #
-    # QoS: Transient Local → must match map_server's latched publish QoS.
-    - Alpha: 1.0
+    - Alpha: 1
       Binary representation: true
       Binary threshold: 65
       Class: rviz_default_plugins/Map
@@ -77,14 +62,11 @@ Visualization Manager:
       Update Topic:
         Depth: 5
         Durability Policy: Transient Local
-        Filter size: 10
         History Policy: Keep Last
         Reliability Policy: Reliable
         Value: /map_updates
       Use Timestamp: false
       Value: true
-
-    # ── Robot Model ───────────────────────────────────────────────────────
     - Alpha: 1
       Class: rviz_default_plugins/RobotModel
       Collision Enabled: false
@@ -103,6 +85,121 @@ Visualization Manager:
         Expand Link Details: false
         Expand Tree: false
         Link Tree Style: Links in Alphabetic Order
+        ar4_base_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        ar4_gripper_base_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        ar4_gripper_jaw1_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        ar4_gripper_jaw2_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        ar4_link_1:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        ar4_link_2:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        ar4_link_3:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        ar4_link_4:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        ar4_link_5:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        ar4_link_6:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        ar4_mount_plate:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        base_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        chassis_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        chassis_visual_yellow:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        default_mount:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        front_0_mount:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        front_left_wheel_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        front_right_wheel_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        gps_0_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        imu_0_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        lidar:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rear_0_mount:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        rear_left_wheel_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rear_right_wheel_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
       Mass Properties:
         Inertia: false
         Mass: false
@@ -111,8 +208,6 @@ Visualization Manager:
       Update Interval: 0
       Value: true
       Visual Enabled: true
-
-    # ── TF frames ─────────────────────────────────────────────────────────
     - Class: rviz_default_plugins/TF
       Enabled: false
       Filter (blacklist): ""
@@ -120,23 +215,15 @@ Visualization Manager:
       Frame Timeout: 15
       Frames:
         All Enabled: false
-        base_link:
-          Value: true
-        lidar:
-          Value: true
-        map:
-          Value: true
-        odom:
-          Value: true
       Marker Scale: 0.30000001192092896
       Name: TF
       Show Arrows: false
       Show Axes: true
       Show Names: true
+      Tree:
+        {}
       Update Interval: 0
       Value: false
-
-    # ── LiDAR scan — real-time walls ──────────────────────────────────────
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -159,7 +246,7 @@ Visualization Manager:
       Position Transformer: XYZ
       Selectable: true
       Size (Pixels): 3
-      Size (m): 0.04000000074505806
+      Size (m): 0.03999999910593033
       Style: Flat Squares
       Topic:
         Depth: 5
@@ -171,8 +258,6 @@ Visualization Manager:
       Use Fixed Frame: true
       Use rainbow: false
       Value: true
-
-    # ── AMCL particle cloud ───────────────────────────────────────────────
     - Alpha: 1
       Class: nav2_rviz_plugins/ParticleCloud
       Color: 255; 25; 0
@@ -189,8 +274,6 @@ Visualization Manager:
         Reliability Policy: Best Effort
         Value: /particle_cloud
       Value: true
-
-    # ── AMCL pose ─────────────────────────────────────────────────────────
     - Alpha: 1
       Axes Length: 0.5
       Axes Radius: 0.05000000074505806
@@ -226,9 +309,7 @@ Visualization Manager:
         Reliability Policy: Reliable
         Value: /amcl_pose
       Value: true
-
-    # ── Costmap ───────────────────────────────────────────────────────────
-    - Alpha: 0.4
+    - Alpha: 0.4000000059604645
       Binary representation: false
       Binary threshold: 100
       Class: rviz_default_plugins/Map
@@ -246,14 +327,11 @@ Visualization Manager:
       Update Topic:
         Depth: 5
         Durability Policy: Volatile
-        Filter size: 10
         History Policy: Keep Last
         Reliability Policy: Reliable
         Value: /costmap_updates
       Use Timestamp: false
       Value: true
-
-    # ── A* raw path (orange) ──────────────────────────────────────────────
     - Alpha: 1
       Buffer Length: 1
       Class: rviz_default_plugins/Path
@@ -282,8 +360,6 @@ Visualization Manager:
         Reliability Policy: Reliable
         Value: /a_star/path
       Value: true
-
-    # ── A* smoothed path (green) ──────────────────────────────────────────
     - Alpha: 1
       Buffer Length: 1
       Class: rviz_default_plugins/Path
@@ -312,7 +388,6 @@ Visualization Manager:
         Reliability Policy: Reliable
         Value: /a_star/path/smooth
       Value: true
-
   Enabled: true
   Global Options:
     Background Color: 200; 200; 200
@@ -345,6 +420,7 @@ Visualization Manager:
         Reliability Policy: Reliable
         Value: /goal_pose
     - Class: rviz_default_plugins/PublishPoint
+      Single click: true
       Topic:
         Depth: 5
         Durability Policy: Volatile
@@ -367,7 +443,7 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Scale: 50.0
+      Scale: 51.055118560791016
       Target Frame: <Fixed Frame>
       Value: TopDownOrtho (rviz_default_plugins)
       X: 0
@@ -376,9 +452,16 @@ Visualization Manager:
 Window Geometry:
   Displays:
     collapsed: false
-  Height: 1000
+  Height: 661
   Hide Left Dock: false
   Hide Right Dock: false
+  QMainWindow State: 000000ff00000000fd00000001000000000000026f0000023bfc0200000004fb000000100044006900730070006c006100790073010000003d000001c2000000c900fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007300000001830000009d0000005c00fffffffb0000000a005600690065007700730000000195000000a4000000a400fffffffb0000000800540069006d00650100000205000000730000003900ffffff000003030000023b00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  Time:
+    collapsed: false
+  Tool Properties:
+    collapsed: false
+  Views:
+    collapsed: false
   Width: 1400
   X: 0
-  Y: 0
+  Y: 28
