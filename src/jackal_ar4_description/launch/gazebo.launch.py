@@ -30,6 +30,7 @@ def generate_launch_description():
     pkg_navigation   = get_package_share_directory('jackal_ar4_navigation')
     pkg_ar4_desc     = get_package_share_directory('ar4_description')
     pkg_clearpath    = get_package_share_directory('clearpath_platform_description')
+    goal_manager_pkg = get_package_share_directory('goal_manager_pkg')
     controllers_yaml = os.path.join(pkg_moveit, 'config', 'ros2_controllers.yaml')
 
     # Worlds package is optional — fall back to Gazebo built-in empty world
@@ -285,6 +286,16 @@ def generate_launch_description():
         condition=IfCondition(launch_rviz),
         output='screen',
     )])
+    # ── 12. Goal Manager ──────────────────────────────────────────────────
+    # Replace 'goal_manager.launch.py' with the actual filename in your package
+    goal_manager = TimerAction(period=18.0, actions=[
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
+                os.path.join(goal_manager_pkg, 'launch', 'goal_manager.launch.py')
+            ),
+            launch_arguments={'use_sim_time': 'true'}.items(),
+        )
+    ])
 
     return LaunchDescription([
         world_arg,
@@ -303,4 +314,5 @@ def generate_launch_description():
         nav2,
         move_group,        # t=11s
         rviz,              # t=12s
+        goal_manager,
     ])
