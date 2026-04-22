@@ -2,6 +2,9 @@
 
 A ROS 2 Jazzy simulation of the **Clearpath Jackal J100** mobile robot equipped with an **AR4 6-DOF robotic arm**, a **360° 2D LiDAR**, and a custom **A\* Smooth Planner** for autonomous navigation. Runs in **Gazebo Harmonic** with **SLAM Toolbox** mapping, **AMCL** localisation, **MoveIt 2** arm control, and **Nav2**.
 
+After building, one line launch with: 
+`ros2 launch goal_manager_pkg tpr_full.launch.py`
+
 ---
 
 ## Table of Contents
