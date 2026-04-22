@@ -67,11 +67,11 @@ private:
         return;
       }
 
-      // Get the robot's current pose in the odom frame
+      // Get the robot's current pose in the map frame
       geometry_msgs::msg::TransformStamped robot_pose;
       try {
         robot_pose = tf_buffer_->lookupTransform(
-        "odom", "base_link", tf2::TimePointZero);
+        "map", "base_link", tf2::TimePointZero);
       } catch (tf2::TransformException &ex) {
         RCLCPP_WARN(get_logger(), "Could not transform: %s", ex.what());
         return;

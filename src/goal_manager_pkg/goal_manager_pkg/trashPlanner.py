@@ -17,7 +17,14 @@ import numpy as np
 class TrashPlanner(Node):
     def __init__(self, node_name, *, context = None, cli_args = None, namespace = None, use_global_arguments = True, enable_rosout = True, start_parameter_services = True, parameter_overrides = None, allow_undeclared_parameters = False, automatically_declare_parameters_from_overrides = False, enable_logger_service = False):
         super().__init__(node_name, context=context, cli_args=cli_args, namespace=namespace, use_global_arguments=use_global_arguments, enable_rosout=enable_rosout, start_parameter_services=start_parameter_services, parameter_overrides=parameter_overrides, allow_undeclared_parameters=allow_undeclared_parameters, automatically_declare_parameters_from_overrides=automatically_declare_parameters_from_overrides, enable_logger_service=enable_logger_service)
-        self.arm_workspace_radius = 0.4 #40 cm #TODO fill in with actual radius here
+        self.workspace_radius = 0.15  # 0.3m diameter workspace
+        self.workspace_offset = 0.36  # half robot (0.21) + radius (0.10) + 0.05
+
+        # When False, the mission_executive handles removal after the arm
+        # actually picks trash. When True (standalone use), this node
+        # publishes /removed_goals as soon as trash enters arm reach.
+        self.declare_parameter('auto_remove', False)
+        self.auto_remove = self.get_parameter('auto_remove').value
         # Subscribe to the costmap topic from your rqt list
         self.subscription = self.create_subscription(
             OccupancyGrid,
@@ -137,61 +144,58 @@ class TrashPlanner(Node):
 
         return closest_trash
     
-    def determine_goal(self,closest_trash,trashList):
+    def determine_goal(self, closest_trash, trashList):
+        """Compute nav target so the forward-offset workspace lands on trash.
+
+        The robot's arm workspace is a cylinder centered at workspace_offset
+        ahead of base_link.  The nav target is placed so that the workspace
+        center aligns with the trash cluster centroid (or single item).
+        """
+        # Cluster: trash within one workspace diameter of the closest item
         nearby_trash = []
+        cluster_r = self.workspace_radius * 2.0
         for coords in trashList:
             x, y = coords
             dist = math.sqrt((x - closest_trash[0])**2 + (y - closest_trash[1])**2)
-            
-            # Check if trash is within reach
-            if dist < self.arm_workspace_radius * 2: 
-                # Convert world coordinates (meters) to grid indices (integers)
+            if dist < cluster_r:
                 start_grid = self.world_to_grid(closest_trash[0], closest_trash[1])
                 end_grid = self.world_to_grid(x, y)
-                
-                # Ensure conversion worked and then check the path
                 if start_grid and end_grid:
                     if self.is_path_clear(self.grid_data, start_grid, end_grid):
                         nearby_trash.append(coords)
-        
+
         self.currGoals = nearby_trash
-        if len(nearby_trash) == 1: 
-            x,y = nearby_trash[0]
-            rx = self.robotPose[0]
-            ry = self.robotPose[1]
-            
-            dx = x - rx
-            dy = y - ry
-            currLen = math.sqrt(dx**2 + dy**2)
-            if currLen <= self.arm_workspace_radius/2.0:
-                return (self.robotPose[0],self.robotPose[1]) 
-            
-            newLen = currLen - self.arm_workspace_radius/2.0
-            ratio = newLen / currLen
 
-            newx = self.robotPose[0] + (dx*ratio)
-            newy = self.robotPose[1] + (dy*ratio)
-            gx,gy = self.world_to_grid(newx,newy)
+        # Workspace target = centroid of cluster (or single item)
+        if len(nearby_trash) == 1:
+            tx, ty = nearby_trash[0]
+        else:
+            tx = sum(x for x, y in nearby_trash) / len(nearby_trash)
+            ty = sum(y for x, y in nearby_trash) / len(nearby_trash)
 
-            if self.grid_data[gy][gx] > 100: #checks if this would go into the wall!!              
-                newLen = currLen + self.arm_workspace_radius/2.0
-                ratio = newLen / currLen
+        # Nav target = workspace_target - offset along robot->target direction
+        rx, ry = self.robotPose
+        dx = tx - rx
+        dy = ty - ry
+        dist = math.sqrt(dx**2 + dy**2)
 
-                newx = self.robotPose[0] + (dx*ratio)
-                newy = self.robotPose[1] + (dy*ratio)
-            return (newx,newy)
-        #for multiple pieces of trash
-        sumx = 0
-        sumy = 0
-        for x,y in nearby_trash:
-            sumx += x
-            sumy += y
-        centroid = ((sumx)/len(nearby_trash),(sumy)/len(nearby_trash)) #uses geometric average (centroid) of the object to be equadistant to in the middle of the points
-        gridx, gridy = self.world_to_grid(centroid[0],centroid[1])
-        if self.grid_data[gridy][gridx] >= 100:
-            return closest_trash
-        else:  
-            return centroid
+        if dist < 0.01:
+            return (rx, ry)
+
+        ux, uy = dx / dist, dy / dist
+        navx = tx - self.workspace_offset * ux
+        navy = ty - self.workspace_offset * uy
+
+        # Check if nav target is in a wall; if so, overshoot past the trash
+        gx, gy = self.world_to_grid(navx, navy)
+        if (gx is not None and gy is not None
+                and 0 <= gy < self.grid_data.shape[0]
+                and 0 <= gx < self.grid_data.shape[1]
+                and self.grid_data[gy][gx] >= 100):
+            navx = tx + self.workspace_offset * ux
+            navy = ty + self.workspace_offset * uy
+
+        return (navx, navy)
             
     def get_line(self, start, end):
         """
@@ -243,10 +247,12 @@ class TrashPlanner(Node):
         return True # Path is clear
     
     def check_for_achieved_goals(self):
+        if not self.auto_remove:
+            return
         goals_to_remove = []
         if self.currGoals:
             for goal in self.currGoals:
-                if self.arm_workspace_radius > abs(self.robotPose[0] - goal[0]) > 0 and self.arm_workspace_radius > abs(self.robotPose[1]-goal[1]) > 0:
+                if self.workspace_radius > abs(self.robotPose[0] - goal[0]) > 0 and self.workspace_radius > abs(self.robotPose[1]-goal[1]) > 0:
                     goals_to_remove.append(goal)
             if len(goals_to_remove) > 0:
                 self.remove_goals(goals_to_remove)

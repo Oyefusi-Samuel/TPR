@@ -228,7 +228,8 @@
         <inertial><mass>0.40</mass>
           <inertia><ixx>0.00045</ixx><iyy>0.00045</iyy><izz>0.00002</izz>
             <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz></inertia></inertial>
-        <collision name="col"><geometry><cylinder><radius>0.020</radius><length>0.115</length></cylinder></geometry></collision>
+        <collision name="col"><geometry><cylinder><radius>0.005</radius><length>0.115</length></cylinder></geometry>
+          <surface><contact><collide_bitmask>0x02</collide_bitmask></contact></surface></collision>
         <visual name="vis">
           <geometry><cylinder><radius>0.020</radius><length>0.115</length></cylinder></geometry>
           <material><ambient>0.78 0.93 1.0 0.55</ambient><diffuse>0.78 0.93 1.0 0.55</diffuse><specular>0.9 0.9 0.9 1</specular></material>
@@ -239,7 +240,8 @@
       <static>false</static>
       <pose>1.60 0.08 0.508 0 0 0</pose>
       <link name="link">
-        <collision name="col"><geometry><cylinder><radius>0.010</radius><length>0.030</length></cylinder></geometry></collision>
+        <collision name="col"><geometry><cylinder><radius>0.0025</radius><length>0.030</length></cylinder></geometry>
+          <surface><contact><collide_bitmask>0x02</collide_bitmask></contact></surface></collision>
         <visual name="vis">
           <geometry><cylinder><radius>0.010</radius><length>0.030</length></cylinder></geometry>
           <material><ambient>0.78 0.93 1.0 0.55</ambient><diffuse>0.78 0.93 1.0 0.55</diffuse><specular>0.9 0.9 0.9 1</specular></material>
@@ -254,7 +256,8 @@
         <inertial><mass>0.40</mass>
           <inertia><ixx>0.00045</ixx><iyy>0.00045</iyy><izz>0.00002</izz>
             <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz></inertia></inertial>
-        <collision name="col"><geometry><cylinder><radius>0.020</radius><length>0.115</length></cylinder></geometry></collision>
+        <collision name="col"><geometry><cylinder><radius>0.005</radius><length>0.115</length></cylinder></geometry>
+          <surface><contact><collide_bitmask>0x02</collide_bitmask></contact></surface></collision>
         <visual name="vis">
           <geometry><cylinder><radius>0.020</radius><length>0.115</length></cylinder></geometry>
           <material><ambient>0.78 0.93 1.0 0.55</ambient><diffuse>0.78 0.93 1.0 0.55</diffuse><specular>0.9 0.9 0.9 1</specular></material>
@@ -265,7 +268,8 @@
       <static>false</static>
       <pose>1.60 0.0 0.508 0 0 0</pose>
       <link name="link">
-        <collision name="col"><geometry><cylinder><radius>0.010</radius><length>0.030</length></cylinder></geometry></collision>
+        <collision name="col"><geometry><cylinder><radius>0.0025</radius><length>0.030</length></cylinder></geometry>
+          <surface><contact><collide_bitmask>0x02</collide_bitmask></contact></surface></collision>
         <visual name="vis">
           <geometry><cylinder><radius>0.010</radius><length>0.030</length></cylinder></geometry>
           <material><ambient>0.78 0.93 1.0 0.55</ambient><diffuse>0.78 0.93 1.0 0.55</diffuse><specular>0.9 0.9 0.9 1</specular></material>
@@ -280,7 +284,8 @@
         <inertial><mass>0.40</mass>
           <inertia><ixx>0.00045</ixx><iyy>0.00045</iyy><izz>0.00002</izz>
             <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz></inertia></inertial>
-        <collision name="col"><geometry><cylinder><radius>0.020</radius><length>0.115</length></cylinder></geometry></collision>
+        <collision name="col"><geometry><cylinder><radius>0.005</radius><length>0.115</length></cylinder></geometry>
+          <surface><contact><collide_bitmask>0x02</collide_bitmask></contact></surface></collision>
         <visual name="vis">
           <geometry><cylinder><radius>0.020</radius><length>0.115</length></cylinder></geometry>
           <material><ambient>0.78 0.93 1.0 0.55</ambient><diffuse>0.78 0.93 1.0 0.55</diffuse><specular>0.9 0.9 0.9 1</specular></material>
@@ -291,7 +296,8 @@
       <static>false</static>
       <pose>1.60 -0.08 0.508 0 0 0</pose>
       <link name="link">
-        <collision name="col"><geometry><cylinder><radius>0.010</radius><length>0.030</length></cylinder></geometry></collision>
+        <collision name="col"><geometry><cylinder><radius>0.0025</radius><length>0.030</length></cylinder></geometry>
+          <surface><contact><collide_bitmask>0x02</collide_bitmask></contact></surface></collision>
         <visual name="vis">
           <geometry><cylinder><radius>0.010</radius><length>0.030</length></cylinder></geometry>
           <material><ambient>0.78 0.93 1.0 0.55</ambient><diffuse>0.78 0.93 1.0 0.55</diffuse><specular>0.9 0.9 0.9 1</specular></material>

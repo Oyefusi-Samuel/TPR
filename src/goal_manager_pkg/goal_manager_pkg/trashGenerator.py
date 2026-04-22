@@ -8,23 +8,29 @@ import math
 class GoalEmitter(Node):
     def __init__(self):
         super().__init__('goal_emitter')
+
+        # World name must match the <world name="..."> in the SDF file
+        # (used for Gazebo service calls to remove models).
+        self.declare_parameter('world_name', 'room_with_walls_star')
+        self.world_name = self.get_parameter('world_name').value
+
         # We use PoseArray to send multiple goals in one "burst"
         self.publisher_ = self.create_publisher(PoseArray, '/detected_goals', 10)
         self.timer = self.create_timer(2.0, self.publish_goals)
         self.sub = self.create_subscription(PoseArray,'/removed_goals',self.remove_goals_callback,10)
-        
+
+        # Spread out bottles, some clustered, away from table at x=1.60
         self.trash_data = [
-            {'Name': 'bottle0', 'pos': (2.5,2.0)},
-            {'Name': 'bottle1', 'pos': (2.8,2.4)},
-            {'Name': 'bottle2', 'pos': (4.0,4.0)},
-            {'Name': 'bottle3', 'pos': (1.2,2.0)},
-            {'Name': 'bottle4', 'pos': (1.0,2.0)},
-            {'Name': 'bottle5', 'pos': (2.4,1.0)},
-            {'Name': 'bottle6', 'pos': (2.4,-0.4)},
-            {'Name': 'bottle7', 'pos': (0.4,-1.4)},
-            ]
-        # self.positions = [(2.5, 2), (2.8, 2.4), (4.0, 4.0),(1.2,2),(1.0,2), (2.4,1), (2.4,-0.4)] 
-                
+            # Cluster of 2 at left side
+            {'Name': 'bottle0', 'pos': (-0.8, 0.3)},
+            {'Name': 'bottle1', 'pos': (-0.75, 0.5)},
+            # Isolated bottles
+            {'Name': 'bottle2', 'pos': (0.5, 1.2)},
+            {'Name': 'bottle3', 'pos': (0.2, -0.9)},
+            {'Name': 'bottle4', 'pos': (1.0, 0.1)},
+            {'Name': 'bottle5', 'pos': (-0.3, -1.1)},
+        ]
+
         self.spawn_all_trash()
 
     def publish_goals(self):
@@ -43,18 +49,10 @@ class GoalEmitter(Node):
         self.publisher_.publish(msg)
         self.get_logger().info(f'Published {len(msg.poses)} goals')
 
-    def remove_goals_callback(self,msg):
+    def remove_goals_callback(self, msg):
         for p in msg.poses:
-            try:
-                x, y = p.position.x, p.position.y
-                self.remove_bottle_at_coord(target_x=x,target_y=y)
-                for item in self.trash_data:
-                    x2, y2 = item['pos']
-                    if (x2-x) < 1e-9 and (y2 -y) < 1e-9:
-                        self.trash_data.remove(item)
-                
-            except ValueError:
-                self.get_logger().warn(f'Goal {(p.position.x,p.position.y)} not in list of goals!')
+            self.remove_bottle_at_coord(
+                target_x=p.position.x, target_y=p.position.y)
         
 
     #gazebo code below   
@@ -100,7 +98,8 @@ class GoalEmitter(Node):
                 </inertia>
               </inertial>
               <collision name="col">
-                <geometry><cylinder><radius>0.020</radius><length>0.115</length></cylinder></geometry>
+                <geometry><cylinder><radius>0.005</radius><length>0.115</length></cylinder></geometry>
+                <surface><contact><collide_bitmask>0x02</collide_bitmask></contact></surface>
               </collision>
               <visual name="vis">
                 <geometry><cylinder><radius>0.020</radius><length>0.115</length></cylinder></geometry>
@@ -129,7 +128,7 @@ class GoalEmitter(Node):
             # We construct the EXACT string that worked for you in the terminal
             # Note the use of double quotes for the outer string and single quotes for the name
             command = (
-                f"gz service -s /world/room_with_walls/remove "
+                f"gz service -s /world/{self.world_name}/remove "
                 f"--reqtype gz.msgs.Entity "
                 f"--reptype gz.msgs.Boolean "
                 f"--timeout 2000 "

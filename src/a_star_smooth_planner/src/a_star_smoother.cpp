@@ -132,13 +132,19 @@ private:
         GridPose last_safe = pose_queue.front();
         pose_queue.pop();
 
-        sparse_path.push_back(last_safe);
-        start = last_safe;
-
-        while (!pose_queue.empty()) {
-          pose_queue.pop();
+        if (last_safe.x == start.x && last_safe.y == start.y) {
+          // No safe intermediate point — keep the raw A* waypoint
+          sparse_path.push_back(next);
+          start = next;
+          while (!pose_queue.empty()) { pose_queue.pop(); }
+          pose_queue.push(start);
+          ++i;
+        } else {
+          sparse_path.push_back(last_safe);
+          start = last_safe;
+          while (!pose_queue.empty()) { pose_queue.pop(); }
+          pose_queue.push(start);
         }
-        pose_queue.push(start);
       } else {
         pose_queue.pop();
         ++i;

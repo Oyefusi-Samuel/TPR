@@ -63,14 +63,17 @@ class AStarPlanner(Node):
             self.get_logger().error("No map received!")
             return
 
+        self.get_logger().info(
+            f"Goal received: ({pose.pose.position.x:.2f}, {pose.pose.position.y:.2f})")
+
         self.visited_map_.data = [-1] * (self.visited_map_.info.height * self.visited_map_.info.width)
 
         try:
             map_to_base_tf = self.tf_buffer.lookup_transform(
                 self.map_.header.frame_id, "base_link", rclpy.time.Time()
             )
-        except LookupException:
-            self.get_logger().error("Could not transform from map to base_link")
+        except Exception as e:
+            self.get_logger().error(f"TF lookup failed: {e}")
             return
 
         map_to_base_pose = Pose()
@@ -120,7 +123,8 @@ class AStarPlanner(Node):
                     visited_nodes.add(new_node)
 
             self.visited_map_.data[self.pose_to_cell(active_node)] = -106
-            self.map_pub.publish(self.visited_map_)
+
+        self.map_pub.publish(self.visited_map_)
 
         path = Path()
         path.header.frame_id = self.map_.header.frame_id

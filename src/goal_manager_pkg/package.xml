@@ -19,6 +19,7 @@
   <depend>tf2_geometry_msgs</depend>
   <depend>sensor_msgs</depend>
   <depend>ros_gz_interfaces</depend>
+  <depend>jackal_ar4_interfaces</depend>
 
   <export>
     <build_type>ament_python</build_type>

@@ -18,7 +18,9 @@ install(
 install(
   PROGRAMS
     scripts/ground_truth_odom.py
+    scripts/gz_ground_truth_odom.py
     scripts/twist_unstamper.py
+    scripts/goto_controller.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
