@@ -1,0 +1,55 @@
+# =============================================================
+# docker-compose.yml — ROS2 Jazzy Desktop
+# =============================================================
+services:
+  ros2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ros2_jazzy_desktop:latest
+    container_name: ros2_jazzy
+
+    # ----- display (RViz / rqt) ------------------------------
+    # Passes your host X11 socket into the container.
+    # On Linux this works out of the box.
+    # On macOS use XQuartz; on Windows use VcXsrv / WSLg.
+    environment:
+      - DISPLAY=${DISPLAY:-:0}
+      - QT_X11_NO_MITSHM=1
+      - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-0}
+
+    volumes:
+      # Source code — live-edit without rebuilding the image
+      - ./:/ros2_ws/src/
+
+      # X11 socket for GUI tools
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+
+      # Persist colcon build cache between container restarts
+      - ros2_build:/ros2_ws/build
+      - ros2_install:/ros2_ws/install
+      - ros2_log:/ros2_ws/log
+
+    # Share host network so ROS2 DDS discovery works naturally
+    network_mode: host
+
+    # Keep stdin open for interactive bash sessions
+    stdin_open: true
+    tty: true
+
+    # Allow rviz / OpenGL hardware rendering (optional)
+    # privileged: true   # uncomment if you need GPU access
+
+    # Uncomment to add GPU access (NVIDIA)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+volumes:
+  ros2_build:
+  ros2_install:
+  ros2_log:
