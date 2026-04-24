@@ -4,9 +4,10 @@
 # Usage:
 #   ./run.sh              — open an interactive shell
 #   ./run.sh build        — build the Docker image
-#   ./run.sh colcon       — build all three ROS2 workspaces
+#   ./run.sh colcon       — build the ROS2 workspace inside container
 #   ./run.sh rviz         — launch RViz2
 #   ./run.sh rqt          — launch rqt
+#   ./run.sh launch <pkg> <file> [args] — run a launch file
 #   ./run.sh exec <cmd>   — run an arbitrary command
 # =============================================================
 set -e
@@ -29,14 +30,16 @@ case "${1:-shell}" in
     docker compose run --rm ros2 bash -c \
       "source /opt/ros/jazzy/setup.bash && \
        cd /ros2_ws/src && \
-       colcon build --symlink-install"
+       colcon build --symlink-install && \
+       source /ros2_ws/src/install/setup.bash && \
+       echo '--- Build complete! ---'"
     ;;
 
   rviz)
     echo ">>> Launching RViz2..."
     docker compose run --rm ros2 bash -c \
       "source /opt/ros/jazzy/setup.bash && \
-       source /ros2_ws/install/setup.bash && \
+       source /ros2_ws/src/install/setup.bash && \
        rviz2"
     ;;
 
@@ -44,14 +47,28 @@ case "${1:-shell}" in
     echo ">>> Launching rqt..."
     docker compose run --rm ros2 bash -c \
       "source /opt/ros/jazzy/setup.bash && \
-       source /ros2_ws/install/setup.bash && \
+       source /ros2_ws/src/install/setup.bash && \
        rqt"
+    ;;
+
+  launch)
+    PKG="${2:?Usage: ./run.sh launch <package> <launch_file> [args]}"
+    FILE="${3:?Usage: ./run.sh launch <package> <launch_file> [args]}"
+    shift 3
+    echo ">>> Launching $PKG $FILE $*..."
+    docker compose run --rm ros2 bash -c \
+      "source /opt/ros/jazzy/setup.bash && \
+       source /ros2_ws/src/install/setup.bash && \
+       ros2 launch $PKG $FILE $*"
     ;;
 
   exec)
     shift
     echo ">>> Running: $*"
-    docker compose run --rm ros2 bash -c "$*"
+    docker compose run --rm ros2 bash -c \
+      "source /opt/ros/jazzy/setup.bash && \
+       source /ros2_ws/src/install/setup.bash && \
+       $*"
     ;;
 
   shell|*)
