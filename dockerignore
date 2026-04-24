@@ -1,0 +1,18 @@
+# Build artifacts — don't copy into the image
+build/
+install/
+log/
+
+# Git & editor noise
+.git/
+.gitignore
+.vscode/
+.idea/
+*.pyc
+__pycache__/
+
+# Docker files themselves
+Dockerfile
+docker-compose.yml
+docker/
+run.sh

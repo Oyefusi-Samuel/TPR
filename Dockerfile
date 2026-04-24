@@ -1,35 +1,67 @@
+# ============================================================
+# ROS2 Jazzy — Desktop Image
+# Base: osrf/ros:jazzy-desktop
+# ============================================================
 FROM osrf/ros:jazzy-desktop
 
-# Install core dependencies
-RUN apt-get update && apt-get install -y \
-    ros-jazzy-navigation2 \
-    ros-jazzy-nav2-bringup \
-    ros-jazzy-moveit \
-    ros-jazzy-xacro \
-    ros-jazzy-joint-state-publisher-gui \
+# ---------- build args (override at build time if needed) ---
+ARG WORKSPACE=/ros2_ws
+ARG DEBIAN_FRONTEND=noninteractive
+
+# ---------- system dependencies -----------------------------
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    cmake \
+    git \
+    curl \
+    wget \
+    vim \
+    nano \
+    bash-completion \
+    iputils-ping \
+    net-tools \
+    python3-colcon-common-extensions \
+    python3-rosdep \
+    python3-vcstool \
     python3-pip \
+    ros-jazzy-rviz2 \
+    ros-jazzy-rqt \
+    ros-jazzy-rqt-common-plugins \
+    ros-jazzy-ros2-control \
+    ros-jazzy-ros2-controllers \
+    ros-jazzy-controller-manager \
+    ros-jazzy-ros-gz-bridge \
+    ros-jazzy-ros-gz-sim \
+    ros-jazzy-ros-gz-interfaces \
+    ros-jazzy-moveit \
     && rm -rf /var/lib/apt/lists/*
+# ---------- rosdep init (skip if already initialised) -------
+RUN rosdep update
 
-# Setup workspace
-ENV WORKSPACE=/root/jackal_ar4_ws
-WORKDIR $WORKSPACE
+# ---------- workspace setup ---------------------------------
+WORKDIR ${WORKSPACE}
 
-# Copy source code
-COPY ./src $WORKSPACE/src
+# Copy your repository into the image.
+COPY . ${WORKSPACE}/src/
 
-# Install remaining dependencies via rosdep
-RUN . /opt/ros/jazzy/setup.sh && \
-    apt-get update && \
-    rosdep update && \
-    rosdep install --from-paths src --ignore-src -r -y && \
-    rm -rf /var/lib/apt/lists/*
+# Install rosdep dependencies for all workspaces
+RUN bash -c "source /opt/ros/jazzy/setup.bash && \
+    rosdep install --from-paths \
+      src --ignore-src -r -y"
 
-# Build the workspace
-RUN . /opt/ros/jazzy/setup.sh && \
-    colcon build --symlink-install
+#  Build TPR root workspace (a_star_smooth_planner)
+RUN bash -c "source /opt/ros/jazzy/setup.bash && \
+    cd ${WORKSPACE}/src && \
+    colcon build --symlink-install"
 
-# Entrypoint
-COPY ./entrypoint.sh /
+# ---------- environment -------------------------------------
+# Auto-source ROS and all workspaces on every shell session
+RUN echo "source /opt/ros/jazzy/setup.bash" >> /etc/bash.bashrc && \
+    echo "source ${WORKSPACE}/src/install/setup.bash" >> /etc/bash.bashrc
+
+# ---------- entrypoint --------------------------------------
+COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
+
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["ros2", "launch", "jackal_ar4_description", "jackal_ar4.launch"]
+CMD ["bash"]
