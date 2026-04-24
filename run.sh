@@ -73,7 +73,10 @@ case "${1:-shell}" in
 
   shell|*)
     echo ">>> Opening interactive shell in container..."
-    docker compose run --rm ros2 bash
+    docker compose run --rm ros2 bash -c \
+	"source /opt/ros/jazzy/setup.bash && \
+	source /ros2_ws/src/install/setup.bash && \
+	ros2 launch goal_manager_pkg tpr_full.launch.py"
     ;;
 
 esac

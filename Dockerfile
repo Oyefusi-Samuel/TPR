@@ -71,4 +71,4 @@ COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["bash"]
+CMD ["bash", "-c", "ros2 launch goal_manager_pkg tpr_full.launch.py"]
