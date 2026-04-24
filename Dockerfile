@@ -10,7 +10,6 @@ ARG DEBIAN_FRONTEND=noninteractive
 
 # ---------- system dependencies -----------------------------
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    # essentials
     build-essential \
     cmake \
     git \
@@ -19,10 +18,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     vim \
     nano \
     bash-completion \
-    # networking / debug
     iputils-ping \
     net-tools \
-    # ROS extras
     python3-colcon-common-extensions \
     python3-rosdep \
     python3-vcstool \
@@ -30,8 +27,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-jazzy-rviz2 \
     ros-jazzy-rqt \
     ros-jazzy-rqt-common-plugins \
+    ros-jazzy-ros2-control \
+    ros-jazzy-ros2-controllers \
+    ros-jazzy-controller-manager \
+    ros-jazzy-ros-gz-bridge \
+    ros-jazzy-ros-gz-sim \
+    ros-jazzy-ros-gz-interfaces \
+    ros-jazzy-moveit \
     && rm -rf /var/lib/apt/lists/*
-
 # ---------- rosdep init (skip if already initialised) -------
 RUN rosdep update
 
@@ -39,22 +42,37 @@ RUN rosdep update
 WORKDIR ${WORKSPACE}
 
 # Copy your repository into the image.
-# If you prefer to mount it at runtime (dev workflow), comment
-# out the COPY line and rely on the volume in docker-compose.
 COPY . ${WORKSPACE}/src/
 
-# Install rosdep dependencies declared in your packages
+# Install rosdep dependencies for all workspaces
 RUN bash -c "source /opt/ros/jazzy/setup.bash && \
-    rosdep install --from-paths src --ignore-src -r -y"
+    rosdep install --from-paths \
+      src --ignore-src -r -y"
 
-# Build the workspace
+# [1/3] Build TPR root workspace (a_star_smooth_planner)
 RUN bash -c "source /opt/ros/jazzy/setup.bash && \
+    cd ${WORKSPACE}/src && \
+    colcon build --symlink-install"
+
+# [2/3] Build ar4_ros_driver
+RUN bash -c "source /opt/ros/jazzy/setup.bash && \
+    source ${WORKSPACE}/src/install/setup.bash && \
+    cd ${WORKSPACE}/src/ar4_ros_driver && \
+    colcon build --symlink-install"
+
+# [3/3] Build goal_manager_pkg
+RUN bash -c "source /opt/ros/jazzy/setup.bash && \
+    source ${WORKSPACE}/src/install/setup.bash && \
+    source ${WORKSPACE}/src/ar4_ros_driver/install/setup.bash && \
+    cd ${WORKSPACE}/src/goal_manager_pkg && \
     colcon build --symlink-install"
 
 # ---------- environment -------------------------------------
-# Auto-source ROS and the workspace on every shell session
+# Auto-source ROS and all workspaces on every shell session
 RUN echo "source /opt/ros/jazzy/setup.bash" >> /etc/bash.bashrc && \
-    echo "source ${WORKSPACE}/install/setup.bash" >> /etc/bash.bashrc
+    echo "source ${WORKSPACE}/src/install/setup.bash" >> /etc/bash.bashrc && \
+    echo "source ${WORKSPACE}/src/ar4_ros_driver/install/setup.bash" >> /etc/bash.bashrc && \
+    echo "source ${WORKSPACE}/src/goal_manager_pkg/install/setup.bash" >> /etc/bash.bashrc
 
 ENV WORKSPACE=${WORKSPACE}
 

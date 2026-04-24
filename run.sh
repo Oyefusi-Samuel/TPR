@@ -4,7 +4,7 @@
 # Usage:
 #   ./run.sh              — open an interactive shell
 #   ./run.sh build        — build the Docker image
-#   ./run.sh colcon       — build the ROS2 workspace inside container
+#   ./run.sh colcon       — build all three ROS2 workspaces
 #   ./run.sh rviz         — launch RViz2
 #   ./run.sh rqt          — launch rqt
 #   ./run.sh exec <cmd>   — run an arbitrary command
@@ -25,10 +25,28 @@ case "${1:-shell}" in
     ;;
 
   colcon)
-    echo ">>> Building ROS2 workspace with colcon..."
-    docker compose run --rm ros2 bash -c \
-      "source /opt/ros/jazzy/setup.bash && \
-       colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=RelWithDebInfo"
+    echo ">>> Building all ROS2 workspaces..."
+    docker compose run --rm ros2 bash -c "
+      set -e
+      source /opt/ros/jazzy/setup.bash
+
+      echo '--- [1/3] Building TPR (a_star_smooth_planner) ---'
+      cd /ros2_ws/src
+      colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=RelWithDebInfo
+      source /ros2_ws/src/install/setup.bash
+
+      echo '--- [2/3] Building ar4_ros_driver ---'
+      cd /ros2_ws/src/ar4_ros_driver
+      colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=RelWithDebInfo
+      source /ros2_ws/src/ar4_ros_driver/install/setup.bash
+
+      echo '--- [3/3] Building goal_manager_pkg ---'
+      cd /ros2_ws/src/goal_manager_pkg
+      colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=RelWithDebInfo
+      source /ros2_ws/src/goal_manager_pkg/install/setup.bash
+
+      echo '--- All workspaces built successfully! ---'
+    "
     ;;
 
   rviz)
