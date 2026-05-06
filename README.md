@@ -2,6 +2,16 @@
 
 A ROS 2 Jazzy simulation of the **Clearpath Jackal J100** mobile robot equipped with an **AR4 6-DOF robotic arm**, a **360° 2D LiDAR**, and a custom **A\* Smooth Planner** for autonomous navigation. Runs in **Gazebo Harmonic** with **SLAM Toolbox** mapping, **AMCL** localisation, **MoveIt 2** arm control, and **Nav2**.
 
+## Docker for RBE550 Submission
+Using WSL2, Ubuntu, etc.  
+1. Clone the repository.
+2. cd into TPR `cd TPR`
+3. Run the bringup script `./run.sh`
+4. After building (which will take minutes) the main simulation will automatically run.
+
+If building yourself, after it's done, one line launch with: 
+`ros2 launch goal_manager_pkg tpr_full.launch.py`
+
 ---
 
 ## Table of Contents
@@ -109,7 +119,7 @@ sudo apt update && sudo apt install -y ros-jazzy-desktop
 
 # Gazebo + navigation packages
 sudo apt install -y ros-jazzy-ros-gz
-sudo apt install -y ros-jazzy-slam-toolbox
+sudo apt install -y ros-jazzy-slam-toolbox 
 sudo apt install -y ros-jazzy-nav2-bringup
 sudo apt install -y ros-jazzy-topic-tools
 sudo apt install -y ros-jazzy-teleop-twist-keyboard

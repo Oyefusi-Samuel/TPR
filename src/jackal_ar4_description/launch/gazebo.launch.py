@@ -84,9 +84,15 @@ def generate_launch_description():
                     'room_with_walls_star, turtlebot_arena, tpr',
     )
     launch_rviz_arg = DeclareLaunchArgument('launch_rviz', default_value='true')
+    launch_nav2_arg = DeclareLaunchArgument(
+        'launch_nav2', default_value='false',
+        description='Launch the Nav2 standard stack (map_server, bt_navigator, '
+                    'etc.). Set to false when using A* navigation separately.',
+    )
 
     world_name  = LaunchConfiguration('world')
     launch_rviz = LaunchConfiguration('launch_rviz')
+    launch_nav2 = LaunchConfiguration('launch_nav2')
 
     # If worlds package exists, resolve short name -> full path
     # Otherwise pass the value directly (either full path or built-in name)
@@ -146,6 +152,8 @@ def generate_launch_description():
             '/wheel_joint_states@sensor_msgs/msg/JointState[gz.msgs.Model',
             # LiDAR: Gazebo→ROS (topic matches gz_frame_id in URDF)
             '/lidar/scan@sensor_msgs/msg/LaserScan[gz.msgs.LaserScan',
+            # Ground-truth odom from OdometryPublisher plugin (no drift)
+            '/ground_truth_odom@nav_msgs/msg/Odometry[gz.msgs.Odometry',
         ],
         parameters=[{'use_sim_time': True}],
         output='screen',
@@ -188,7 +196,16 @@ def generate_launch_description():
         output='screen',
     )
 
-    # ── 6. map -> odom (no use_sim_time — avoids timestamp=0 bounce) ──────
+    # ── 6. map -> odom ─────────────────────────────────────────────────────
+    # When using A* navigation with AMCL (the default), AMCL publishes the
+    # map->odom transform corrected for odometry drift.  This static
+    # identity fallback is only for quick tests without any navigation stack.
+    static_map_odom_arg = DeclareLaunchArgument(
+        'static_map_odom', default_value='false',
+        description='Publish a static identity map->odom transform. '
+                    'Must be false when AMCL provides map->odom (default). '
+                    'Set true only for quick teleop tests without AMCL.',
+    )
     map_to_odom = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
@@ -196,6 +213,7 @@ def generate_launch_description():
         arguments=['--x', '0', '--y', '0', '--z', '0',
                    '--yaw', '0', '--pitch', '0', '--roll', '0',
                    '--frame-id', 'map', '--child-frame-id', 'odom'],
+        condition=IfCondition(LaunchConfiguration('static_map_odom')),
     )
 
     # ── 7. Controller Manager ─────────────────────────────────────────────
@@ -219,12 +237,13 @@ def generate_launch_description():
     spawn_arm     = spawner('arm_controller',           delay=14.0)
     spawn_gripper = spawner('ar_gripper_controller',    delay=14.0)
 
-    # ── 9. Nav2 ───────────────────────────────────────────────────────────
+    # ── 9. Nav2 (optional — disable when using A* navigation separately) ──
     nav2 = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             os.path.join(pkg_navigation, 'launch', 'navigation.launch.py')
         ),
         launch_arguments={'use_sim_time': 'true'}.items(),
+        condition=IfCondition(launch_nav2),
     )
 
     # ── 10. MoveIt move_group ─────────────────────────────────────────────
@@ -300,6 +319,8 @@ def generate_launch_description():
     return LaunchDescription([
         world_arg,
         launch_rviz_arg,
+        launch_nav2_arg,
+        static_map_odom_arg,
         gz_sim,
         rsp_node,
         bridge,

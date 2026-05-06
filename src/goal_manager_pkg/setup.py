@@ -26,6 +26,7 @@ setup(
         'console_scripts': [
             'trash_planner_node = goal_manager_pkg.trashPlanner:main',
             'trash_generator_node = goal_manager_pkg.trashGenerator:main',
+            'mission_executive = goal_manager_pkg.mission_executive:main',
         ],
     },
 )

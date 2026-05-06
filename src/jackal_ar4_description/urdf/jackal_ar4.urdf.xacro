@@ -102,7 +102,9 @@
   <!-- ── Gazebo plugins (only when is_sim:=true) ──────────────────────── -->
   <xacro:if value="$(arg is_sim)">
 
-    <!-- Differential drive: wheels physics + /odom + /tf odom->base_link -->
+    <!-- Differential drive: wheels physics + /odom + /tf odom->base_link.
+         Odom drifts over time due to wheel slip; AMCL corrects the drift
+         by publishing map->odom from LiDAR-to-map matching. -->
     <gazebo>
       <plugin filename="gz-sim-diff-drive-system"
               name="gz::sim::systems::DiffDrive">
@@ -148,6 +150,21 @@
       </plugin>
     </gazebo>
 
+    <!-- Ground-truth odometry from physics engine (no wheel drift).
+         Publishes gz.msgs.Odometry on /ground_truth_odom at 10 Hz.
+         Bridged to ROS by gazebo.launch.py, consumed by gz_ground_truth_odom.py
+         to compute map→odom correction. No subprocess, no performance hit. -->
+    <gazebo>
+      <plugin filename="gz-sim-odometry-publisher-system"
+              name="gz::sim::systems::OdometryPublisher">
+        <odom_topic>ground_truth_odom</odom_topic>
+        <odom_frame>map</odom_frame>
+        <robot_base_frame>base_link</robot_base_frame>
+        <odom_publish_frequency>10</odom_publish_frequency>
+        <dimensions>3</dimensions>
+      </plugin>
+    </gazebo>
+
     <!-- LiDAR sensor: 360° 10Hz gpu_lidar, topic: lidar/scan
          Pattern follows mobo_bot robot_gazebo_properties.xacro exactly.
          gz_frame_id must match link name for RViz LaserScan display. -->
@@ -180,6 +197,34 @@
         </ray>
       </sensor>
     </gazebo>
+
+    <!-- Collision bitmask: robot=0x01, bottles=0x02.
+         0x01 & 0x02 == 0 → robot links pass through bottles.
+         Robot still collides with ground/walls/table (default 0xFFFF). -->
+    <xacro:macro name="no_bottle_collision" params="link_name">
+      <gazebo reference="${link_name}">
+        <collision><surface><contact>
+          <collide_bitmask>0x01</collide_bitmask>
+        </contact></surface></collision>
+      </gazebo>
+    </xacro:macro>
+    <xacro:no_bottle_collision link_name="chassis_link"/>
+    <xacro:no_bottle_collision link_name="front_left_wheel_link"/>
+    <xacro:no_bottle_collision link_name="front_right_wheel_link"/>
+    <xacro:no_bottle_collision link_name="rear_left_wheel_link"/>
+    <xacro:no_bottle_collision link_name="rear_right_wheel_link"/>
+    <xacro:no_bottle_collision link_name="ar4_mount_plate"/>
+    <xacro:no_bottle_collision link_name="lidar"/>
+    <xacro:no_bottle_collision link_name="ar4_base_link"/>
+    <xacro:no_bottle_collision link_name="ar4_link_1"/>
+    <xacro:no_bottle_collision link_name="ar4_link_2"/>
+    <xacro:no_bottle_collision link_name="ar4_link_3"/>
+    <xacro:no_bottle_collision link_name="ar4_link_4"/>
+    <xacro:no_bottle_collision link_name="ar4_link_5"/>
+    <xacro:no_bottle_collision link_name="ar4_link_6"/>
+    <xacro:no_bottle_collision link_name="ar4_gripper_base_link"/>
+    <xacro:no_bottle_collision link_name="ar4_gripper_jaw1_link"/>
+    <xacro:no_bottle_collision link_name="ar4_gripper_jaw2_link"/>
 
   </xacro:if>
 
